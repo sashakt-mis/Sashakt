@@ -1,0 +1,1395 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Sashakt — Programme Monitoring Dashboard</title>
+<style>
+:root {
+  --navy: #0C447C; --navy-lt: #E6F1FB; --navy-mid: #185FA5;
+  --green: #3B6D11; --green-lt: #EAF3DE; --green-mid: #639922;
+  --amber: #854F0B; --amber-lt: #FAEEDA; --amber-mid: #BA7517;
+  --red: #791F1F; --red-lt: #FCEBEB; --red-mid: #A32D2D;
+  --purple: #3C3489; --purple-lt: #EEEDFE;
+  --teal: #085041; --teal-lt: #E1F5EE; --teal-mid: #1D9E75;
+  --gray: #444441; --gray-lt: #F5F5F3; --gray-mid: #888780;
+  --white: #ffffff; --border: rgba(0,0,0,0.1);
+  --r: 8px; --r-lg: 12px;
+}
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body { font-family: -apple-system, 'Segoe UI', Arial, sans-serif; background: #F0EDE8; color: #2C2C2A; font-size: 13px; }
+
+/* NAV */
+.nav { background: var(--navy); display: flex; align-items: center; padding: 0 20px; height: 52px; gap: 0; position: sticky; top: 0; z-index: 100; }
+.nav-brand { font-size: 15px; font-weight: 600; color: #fff; margin-right: 24px; letter-spacing: -0.3px; white-space: nowrap; }
+.nav-brand span { color: #5DCAA5; }
+.nav-tabs { display: flex; gap: 2px; overflow-x: auto; flex: 1; }
+.nav-tab { padding: 6px 12px; border-radius: 6px; cursor: pointer; font-size: 12px; color: rgba(255,255,255,0.65); white-space: nowrap; border: none; background: none; transition: all 0.15s; }
+.nav-tab:hover { background: rgba(255,255,255,0.1); color: #fff; }
+.nav-tab.active { background: rgba(255,255,255,0.18); color: #fff; font-weight: 500; }
+.nav-badge { display: inline-block; font-size: 9px; padding: 1px 5px; border-radius: 3px; margin-left: 4px; background: rgba(255,255,255,0.15); color: rgba(255,255,255,0.7); vertical-align: middle; }
+.nav-badge.soon { background: rgba(93,202,165,0.25); color: #5DCAA5; }
+.nav-date { font-size: 11px; color: rgba(255,255,255,0.45); white-space: nowrap; margin-left: 12px; }
+
+/* LAYOUT */
+.page { display: none; padding: 20px; max-width: 1200px; margin: 0 auto; }
+.page.active { display: block; }
+
+/* CARDS */
+.card { background: var(--white); border-radius: var(--r-lg); border: 0.5px solid var(--border); padding: 16px; }
+.card-title { font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.06em; color: var(--gray-mid); margin-bottom: 12px; display: flex; align-items: center; gap: 6px; }
+.card-title .slo-tag { font-size: 9px; padding: 2px 6px; border-radius: 3px; background: var(--navy-lt); color: var(--navy); font-weight: 600; }
+
+/* GRIDS */
+.g2 { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+.g3 { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; }
+.g4 { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; }
+.mb12 { margin-bottom: 12px; }
+.mb16 { margin-bottom: 16px; }
+.mb20 { margin-bottom: 20px; }
+
+/* HERO METRICS */
+.hero-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; margin-bottom: 16px; }
+.hero { background: var(--white); border-radius: var(--r-lg); border: 0.5px solid var(--border); padding: 14px 16px; }
+.hero-label { font-size: 11px; color: var(--gray-mid); margin-bottom: 4px; }
+.hero-val { font-size: 26px; font-weight: 600; line-height: 1; }
+.hero-sub { font-size: 11px; color: var(--gray-mid); margin-top: 4px; }
+.hero-alert { background: var(--red-lt); border: 0.5px solid #F7C1C1; border-radius: var(--r-lg); padding: 12px 16px; margin-bottom: 16px; display: flex; align-items: center; gap: 10px; }
+.alert-icon { font-size: 20px; }
+.alert-text { font-size: 13px; font-weight: 600; color: var(--red); }
+.alert-sub { font-size: 11px; color: var(--red-mid); margin-top: 2px; }
+
+/* BARS */
+.bar-row { display: flex; align-items: center; gap: 8px; margin-bottom: 7px; }
+.bar-label { font-size: 12px; color: #555; width: 110px; flex-shrink: 0; text-align: right; }
+.bar-label-left { font-size: 12px; color: #555; width: 130px; flex-shrink: 0; }
+.bar-track { flex: 1; height: 16px; background: #F0EDE8; border-radius: 3px; overflow: hidden; position: relative; }
+.bar-fill { height: 100%; border-radius: 3px; transition: width 0.6s ease; }
+.bar-pct { font-size: 11px; font-weight: 600; width: 38px; text-align: right; flex-shrink: 0; }
+.bench { position: absolute; right: 20%; top: 0; bottom: 0; width: 1.5px; background: var(--gray-mid); opacity: 0.5; }
+.bench-label { position: absolute; right: 20%; top: -14px; font-size: 9px; color: var(--gray-mid); transform: translateX(50%); }
+
+/* STACKED BARS */
+.stack-row { display: flex; align-items: center; gap: 8px; margin-bottom: 8px; }
+.stack-name { font-size: 12px; color: #555; width: 120px; flex-shrink: 0; }
+.stack-track { flex: 1; height: 20px; border-radius: 3px; overflow: hidden; display: flex; }
+.seg-r { background: #F09595; }
+.seg-a { background: #FAC775; }
+.seg-g { background: #97C459; }
+
+/* HEATMAP */
+.heatmap { width: 100%; border-collapse: collapse; font-size: 11px; }
+.heatmap th { padding: 6px 4px; text-align: center; font-size: 10px; font-weight: 600; color: var(--gray-mid); white-space: nowrap; }
+.heatmap th.dist-head { text-align: left; padding-left: 0; }
+.heatmap td { padding: 5px 4px; text-align: center; border-radius: 4px; font-weight: 600; font-size: 11px; }
+.heatmap tr td:first-child { text-align: left; font-size: 12px; color: #333; font-weight: 400; padding-left: 0; white-space: nowrap; }
+
+/* TAGS & BADGES */
+.tag { display: inline-block; font-size: 10px; padding: 2px 7px; border-radius: 3px; font-weight: 600; }
+.tag-func { background: var(--green-lt); color: var(--green); }
+.tag-mod { background: var(--amber-lt); color: var(--amber); }
+.tag-nf { background: var(--red-lt); color: var(--red); }
+.tag-slo { background: var(--navy-lt); color: var(--navy); }
+.tag-soon { background: var(--teal-lt); color: var(--teal); }
+
+/* TABLES */
+.data-table { width: 100%; border-collapse: collapse; font-size: 12px; }
+.data-table th { padding: 8px 10px; background: var(--gray-lt); font-size: 10px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.04em; color: var(--gray-mid); text-align: left; }
+.data-table td { padding: 8px 10px; border-bottom: 0.5px solid var(--border); }
+.data-table tr:last-child td { border-bottom: none; }
+.data-table tr:hover td { background: var(--gray-lt); }
+
+/* SLO CARDS */
+.slo-card { border-radius: var(--r-lg); padding: 16px; border: 0.5px solid var(--border); }
+.slo-num { font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.06em; margin-bottom: 4px; }
+.slo-title { font-size: 13px; font-weight: 600; margin-bottom: 8px; }
+.slo-indicator { display: flex; justify-content: space-between; align-items: center; padding: 5px 0; border-bottom: 0.5px solid rgba(0,0,0,0.06); font-size: 12px; }
+.slo-indicator:last-child { border-bottom: none; }
+.slo-pill { font-size: 10px; padding: 2px 8px; border-radius: 10px; font-weight: 600; }
+
+/* DONUT */
+.donut-wrap { display: flex; align-items: center; gap: 16px; }
+.donut-legend { display: flex; flex-direction: column; gap: 6px; flex: 1; }
+.legend-item { display: flex; align-items: center; gap: 6px; font-size: 12px; }
+.legend-dot { width: 10px; height: 10px; border-radius: 2px; flex-shrink: 0; }
+
+/* ACTION PANEL */
+.action-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; }
+.action-card { background: var(--gray-lt); border-radius: var(--r); padding: 12px; }
+.action-num { font-size: 10px; font-weight: 700; color: var(--gray-mid); margin-bottom: 4px; text-transform: uppercase; letter-spacing: 0.05em; }
+.action-head { font-size: 12px; font-weight: 600; color: #222; margin-bottom: 4px; line-height: 1.3; }
+.action-body { font-size: 11px; color: #666; line-height: 1.5; }
+
+/* FACILITY TABLE */
+.fac-score { display: inline-block; padding: 2px 8px; border-radius: 3px; font-weight: 700; font-size: 11px; }
+
+/* LOCKED PAGE */
+.locked-page { display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 60px 20px; text-align: center; }
+.lock-icon { font-size: 40px; margin-bottom: 16px; color: var(--gray-mid); }
+.lock-title { font-size: 20px; font-weight: 600; color: #333; margin-bottom: 8px; }
+.lock-desc { font-size: 13px; color: #777; max-width: 400px; line-height: 1.7; margin-bottom: 20px; }
+.lock-timeline { display: flex; gap: 12px; flex-wrap: wrap; justify-content: center; }
+.lock-item { background: var(--white); border: 0.5px solid var(--border); border-radius: var(--r); padding: 10px 14px; font-size: 12px; color: #555; }
+.lock-item strong { display: block; font-size: 13px; color: #333; margin-bottom: 2px; }
+
+/* SIMULATED CHART BARS */
+.sim-bar { height: 120px; display: flex; align-items: flex-end; gap: 4px; padding-bottom: 0; }
+.sim-col { flex: 1; border-radius: 3px 3px 0 0; position: relative; }
+.sim-col-label { font-size: 9px; text-align: center; color: var(--gray-mid); margin-top: 4px; }
+
+/* PAGE HEADER */
+.page-header { margin-bottom: 20px; }
+.page-header h1 { font-size: 18px; font-weight: 600; color: #1a1a1a; }
+.page-header p { font-size: 12px; color: var(--gray-mid); margin-top: 3px; }
+.page-header .meta { display: flex; gap: 10px; margin-top: 8px; flex-wrap: wrap; }
+.meta-chip { font-size: 11px; padding: 3px 10px; border-radius: 20px; background: var(--white); border: 0.5px solid var(--border); color: #555; }
+
+/* FILTER BAR */
+.filter-bar { background: var(--white); border: 0.5px solid var(--border); border-radius: var(--r); padding: 10px 14px; margin-bottom: 16px; display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+.filter-label { font-size: 11px; color: var(--gray-mid); font-weight: 600; }
+.filter-select { border: 0.5px solid var(--border); border-radius: 6px; padding: 5px 10px; font-size: 12px; background: var(--gray-lt); color: #333; cursor: pointer; }
+
+/* PROGRESS RING */
+.ring-wrap { display: flex; flex-direction: column; align-items: center; }
+.ring-val { font-size: 22px; font-weight: 700; }
+.ring-sub { font-size: 10px; color: var(--gray-mid); text-align: center; }
+
+/* INSIGHT BOX */
+.insight { background: var(--navy-lt); border-radius: var(--r); padding: 12px 14px; font-size: 12px; color: var(--navy); line-height: 1.6; margin-top: 12px; border-left: 3px solid var(--navy-mid); border-radius: 0 var(--r) var(--r) 0; }
+.insight strong { color: var(--navy); }
+
+/* ACTIVITY LOG SIMULATED */
+.activity-row { display: flex; gap: 10px; padding: 10px 0; border-bottom: 0.5px solid var(--border); align-items: flex-start; }
+.activity-row:last-child { border-bottom: none; }
+.activity-avatar { width: 30px; height: 30px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 11px; font-weight: 700; flex-shrink: 0; }
+.activity-content { flex: 1; }
+.activity-name { font-size: 12px; font-weight: 600; color: #333; }
+.activity-detail { font-size: 12px; color: #666; margin-top: 2px; line-height: 1.5; }
+.activity-meta { font-size: 10px; color: var(--gray-mid); margin-top: 3px; }
+.pulse-dot { display: inline-block; width: 7px; height: 7px; border-radius: 50%; margin-right: 4px; }
+
+/* GOV LOG */
+.gov-row { padding: 10px 0; border-bottom: 0.5px solid var(--border); }
+.gov-row:last-child { border-bottom: none; }
+.gov-title { font-size: 12px; font-weight: 600; color: #333; }
+.gov-meta { font-size: 11px; color: #888; margin-top: 2px; }
+.gov-decision { font-size: 12px; color: #555; margin-top: 4px; padding: 6px 10px; background: var(--gray-lt); border-radius: 5px; }
+.status-pill { font-size: 10px; padding: 2px 8px; border-radius: 10px; font-weight: 600; }
+
+/* MINI TREND */
+.trend-row { display: flex; align-items: center; gap: 10px; padding: 8px 0; border-bottom: 0.5px solid var(--border); font-size: 12px; }
+.trend-row:last-child { border-bottom: none; }
+.trend-bar-wrap { flex: 1; }
+.trend-bars { display: flex; gap: 3px; align-items: flex-end; height: 30px; }
+.trend-b { border-radius: 2px 2px 0 0; width: 12px; }
+</style>
+</head>
+<body>
+
+<nav class="nav">
+  <div class="nav-brand">Sashakt <span>·</span> MIS</div>
+  <div class="nav-tabs">
+    <button class="nav-tab active" onclick="show(0)">State overview</button>
+    <button class="nav-tab" onclick="show(1)">District deep-dive</button>
+    <button class="nav-tab" onclick="show(2)">Facility fact sheet</button>
+    <button class="nav-tab" onclick="show(3)">Progress over time</button>
+    <button class="nav-tab" onclick="show(4)">Field activity</button>
+    <button class="nav-tab" onclick="show(5)">Governance &amp; DTF</button>
+    <button class="nav-tab" onclick="show(6)">SLO scorecard</button>
+  </div>
+  <div class="nav-date" id="nav-date-chip">Loading…</div>
+</nav>
+
+<!-- LOADING BANNER -->
+<div id="loading-banner" style="display:flex;align-items:center;gap:10px;background:#E6F1FB;border-bottom:1px solid #B8D4F0;padding:10px 20px;font-size:12px;color:#0C447C;">
+  <svg width="16" height="16" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg" style="animation:spin 1s linear infinite;flex-shrink:0;">
+    <circle cx="8" cy="8" r="6" stroke="#0C447C" stroke-width="2" stroke-dasharray="18 6" stroke-linecap="round"/>
+  </svg>
+  <span>Fetching live data from Google Sheets…</span>
+</div>
+<div id="error-banner" style="display:none;align-items:flex-start;gap:10px;background:#FCEBEB;border-bottom:1px solid #F7C1C1;padding:10px 20px;font-size:12px;color:#791F1F;">
+  <span style="font-size:16px;flex-shrink:0;">⚠</span>
+  <div>
+    <div style="font-weight:600;">Could not load live data</div>
+    <div class="error-msg" style="margin-top:3px;color:#A32D2D;"></div>
+    <div style="margin-top:4px;">Make the sheet public: <strong>Share → Anyone with the link → Viewer</strong>. Then <a href="javascript:fetchSheetData()" style="color:#0C447C;font-weight:600;">retry</a>.</div>
+  </div>
+</div>
+<style>@keyframes spin { to { transform: rotate(360deg); } }</style>
+
+<!-- PAGE 1: STATE OVERVIEW -->
+<div class="page active" id="p0">
+  <div class="page-header">
+    <h1>State overview</h1>
+    <p>AFHC readiness across all districts · Jharkhand &amp; Odisha</p>
+    <div class="meta">
+      <span class="meta-chip" id="chip-total-fac">—</span>
+      <span class="meta-chip" id="chip-districts">—</span>
+      <span class="meta-chip" id="chip-date-range">—</span>
+      <span class="meta-chip">RKSK framework</span>
+    </div>
+  </div>
+
+  <div class="hero-alert">
+    <div class="alert-icon">⚠</div>
+    <div>
+      <div class="alert-text">Only 4 of 46 facilities meet RKSK functional criteria — 91.3% are not ready to serve adolescents</div>
+      <div class="alert-sub">Monitoring compliance is the single biggest failure at 33.7% · Pakur district requires emergency attention at 27% average readiness</div>
+    </div>
+  </div>
+
+  <div class="hero-grid mb16">
+    <div class="hero">
+      <div class="hero-label">Facilities assessed</div>
+      <div class="hero-val">46</div>
+      <div class="hero-sub">5 districts · May 2026</div>
+    </div>
+    <div class="hero">
+      <div class="hero-label">Functional (≥80%)</div>
+      <div class="hero-val" style="color:var(--red-mid)">4 <span style="font-size:16px;font-weight:400;color:#999">/ 46</span></div>
+      <div class="hero-sub">8.7% · SLO 1 baseline</div>
+    </div>
+    <div class="hero">
+      <div class="hero-label">Average readiness</div>
+      <div class="hero-val" style="color:var(--amber)">56.1%</div>
+      <div class="hero-sub">Across all 46 facilities</div>
+    </div>
+    <div class="hero">
+      <div class="hero-label">Critical gap</div>
+      <div class="hero-val" style="color:var(--red-mid)">33.7%</div>
+      <div class="hero-sub">Monitoring compliance</div>
+    </div>
+  </div>
+
+  <div class="g2 mb12">
+    <div class="card">
+      <div class="card-title">District functional status</div>
+      <div style="margin-bottom:6px;font-size:10px;color:#999;">← Non-functional &nbsp;·&nbsp; Moderate &nbsp;·&nbsp; Functional →</div>
+      <div id="dist-stacks"></div>
+      <div style="display:flex;gap:12px;margin-top:10px;">
+        <span style="display:flex;align-items:center;gap:4px;font-size:10px;color:#666;"><span style="width:10px;height:10px;border-radius:2px;background:#F09595;display:inline-block"></span>Non-functional (&lt;60%)</span>
+        <span style="display:flex;align-items:center;gap:4px;font-size:10px;color:#666;"><span style="width:10px;height:10px;border-radius:2px;background:#FAC775;display:inline-block"></span>Moderate (60–79%)</span>
+        <span style="display:flex;align-items:center;gap:4px;font-size:10px;color:#666;"><span style="width:10px;height:10px;border-radius:2px;background:#97C459;display:inline-block"></span>Functional (≥80%)</span>
+      </div>
+    </div>
+    <div class="card">
+      <div class="card-title">Category compliance · all districts <span class="slo-tag">SLO 1</span></div>
+      <div style="font-size:10px;color:#999;margin-bottom:4px;text-align:right;">80% RKSK threshold →</div>
+      <div id="cat-bars"></div>
+    </div>
+  </div>
+
+  <div class="card mb12">
+    <div class="card-title">District × category heatmap</div>
+    <div style="overflow-x:auto;">
+      <table class="heatmap" id="heatmap-table"></table>
+    </div>
+    <div class="insight"><strong>Read this table:</strong> Green = above 70% · Amber = 50–70% · Red = below 50%. Knowledge (cyan) is strong everywhere except Mayurbhanj and Gumla. Monitoring (dark) is near-zero in Pakur and East Singhbhum. IEC is universally weak — a state supply chain issue confirmed by Pakur CS.</div>
+  </div>
+
+  <div class="card">
+    <div class="card-title">Priority actions this month</div>
+    <div class="action-grid">
+      <div class="action-card">
+        <div class="action-num">Priority 1 · All districts</div>
+        <div class="action-head">Document supervisor feedback at each facility</div>
+        <div class="action-body">Monitoring at 33.7% — lowest category. Visits are happening, records are not kept. Simple register + MOIC signature after each visit.</div>
+      </div>
+      <div class="action-card">
+        <div class="action-num">Priority 2 · NHM State</div>
+        <div class="action-head">Escalate IEC supply gap to RKSK Cell</div>
+        <div class="action-body">IEC at 43.1%. Take-away materials and contraceptive displays absent. State has not supplied districts — Pakur CS confirmed in writing.</div>
+      </div>
+      <div class="action-card">
+        <div class="action-num">Priority 3 · Pakur — urgent</div>
+        <div class="action-head">DC-level direction needed for 3 non-functional facilities</div>
+        <div class="action-body">Littipara (0.6%), Pakuria (14%), UPHC Pakur (15%) — no physical space. Cannot be fixed through supply chain. Requires administrative decision.</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- PAGE 2: DISTRICT DEEP-DIVE -->
+<div class="page" id="p1">
+  <div class="page-header">
+    <h1>District deep-dive</h1>
+    <p>Select a district to view facility scores, category breakdown, and HR attendance gaps</p>
+  </div>
+
+  <div class="filter-bar">
+    <span class="filter-label">District</span>
+    <select class="filter-select" id="dist-select" onchange="updateDistrictPage()">
+      <option value="West Singhbhum">West Singhbhum</option>
+      <option value="East Singhbhum">East Singhbhum</option>
+      <option value="Gumla">Gumla</option>
+      <option value="Pakur">Pakur</option>
+      <option value="Mayurbhanj">Mayurbhanj</option>
+    </select>
+  </div>
+
+  <div class="hero-grid mb16" id="dist-heroes"></div>
+
+  <div class="g2 mb12">
+    <div class="card">
+      <div class="card-title">Facility scores · ranked</div>
+      <div id="dist-fac-table"></div>
+    </div>
+    <div class="card">
+      <div class="card-title">Category breakdown <span class="slo-tag">SLO 1</span></div>
+      <div id="dist-cat-bars"></div>
+    </div>
+  </div>
+
+  <div class="card mb12">
+    <div class="card-title">HR attendance gap <span class="slo-tag">SLO 3</span></div>
+    <p style="font-size:11px;color:#888;margin-bottom:10px;">Expected vs actual days counsellor present at AFHC this month. Gap = diversion to other duties.</p>
+    <div id="dist-hr-table"></div>
+  </div>
+
+  <div class="card">
+    <div class="card-title">District insight</div>
+    <div id="dist-insight" class="insight"></div>
+  </div>
+</div>
+
+<!-- PAGE 3: FACILITY FACT SHEET -->
+<div class="page" id="p2">
+  <div class="page-header">
+    <h1>Facility fact sheet</h1>
+    <p>Item-level scores per facility · select district then facility</p>
+  </div>
+
+  <div class="filter-bar">
+    <span class="filter-label">District</span>
+    <select class="filter-select" id="fac-dist-select" onchange="updateFacDistrict()">
+      <option value="West Singhbhum">West Singhbhum</option>
+      <option value="East Singhbhum">East Singhbhum</option>
+      <option value="Gumla">Gumla</option>
+      <option value="Pakur">Pakur</option>
+      <option value="Mayurbhanj">Mayurbhanj</option>
+    </select>
+    <span class="filter-label" style="margin-left:8px;">Facility</span>
+    <select class="filter-select" id="fac-select" onchange="updateFacilityPage()">
+    </select>
+  </div>
+
+  <div id="fac-hero" class="hero-grid mb16" style="grid-template-columns: repeat(3,1fr)"></div>
+
+  <div class="g2 mb12">
+    <div class="card">
+      <div class="card-title">Category scores</div>
+      <div id="fac-cat-bars"></div>
+    </div>
+    <div class="card">
+      <div class="card-title">HR details <span class="slo-tag">SLO 3</span></div>
+      <div id="fac-hr"></div>
+    </div>
+  </div>
+
+  <div class="card mb12">
+    <div class="card-title">Overall observation</div>
+    <div id="fac-observation" style="font-size:13px;color:#555;line-height:1.6;"></div>
+  </div>
+
+  <div class="card">
+    <div class="card-title">Priority gaps · this facility</div>
+    <div id="fac-gaps"></div>
+  </div>
+</div>
+
+<!-- PAGE 4: PROGRESS OVER TIME -->
+<div class="page" id="p3">
+  <div class="page-header">
+    <h1>Progress over time</h1>
+    <p id="progress-subtitle">Loading…</p>
+  </div>
+
+  <div class="hero-grid mb16" id="progress-heroes"></div>
+
+  <div class="g2 mb12">
+    <div class="card">
+      <div class="card-title">Readiness trend · all districts (latest visit per facility)</div>
+      <div id="progress-trend"></div>
+    </div>
+    <div class="card">
+      <div class="card-title">Functional facilities (≥80%)</div>
+      <div id="progress-functional" style="text-align:center;padding:16px 0 8px;"></div>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-title">How to read this page over time</div>
+    <div style="font-size:12px;color:#666;line-height:1.7;">
+      Every follow-up visit adds a new row to the Master sheet. This page automatically compares latest visit data per facility against earlier visits as new rows are added. Use the "Visit Type" column in the sheet to distinguish Baseline from Follow-up visits.
+    </div>
+  </div>
+</div>
+<!-- PAGE 5: FIELD ACTIVITY -->
+<div class="page" id="p4">
+  <div class="page-header">
+    <h1>Field activity log</h1>
+    <p>Daily DPM updates from the Governance Log sheet · entries tagged as field visits</p>
+  </div>
+  <div id="field-activity-content">
+    <div class="card">
+      <div style="text-align:center;padding:40px 20px;color:#999;">
+        <div style="font-size:28px;margin-bottom:10px;">📋</div>
+        <div style="font-size:13px;font-weight:500;color:#666;">Loading field activity data…</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- PAGE 6: GOVERNANCE & DTF -->
+<div class="page" id="p5">
+  <div class="page-header">
+    <h1>Governance &amp; DTF log</h1>
+    <p>District Task Force activation · government meetings · decisions and commitments — from Governance Log sheet</p>
+  </div>
+  <div id="governance-content">
+    <div class="card">
+      <div style="text-align:center;padding:40px 20px;color:#999;">
+        <div style="font-size:28px;margin-bottom:10px;">📋</div>
+        <div style="font-size:13px;font-weight:500;color:#666;">Loading governance data…</div>
+      </div>
+    </div>
+  </div>
+</div>
+<!-- PAGE 7: SLO SCORECARD -->
+<div class="page" id="p6">
+  <div class="page-header">
+    <h1>SLO scorecard</h1>
+    <p id="slo-subtitle">Piramal's four Strategic Level Outcomes · indicator status</p>
+  </div>
+
+  <div class="g2 mb12">
+    <div class="slo-card" style="background:var(--navy-lt);border-color:#B5D4F4;">
+      <div class="slo-num" style="color:var(--navy)">SLO 1</div>
+      <div class="slo-title" style="color:var(--navy)">Functional AFHCs</div>
+      <div id="slo1-content"></div>
+    </div>
+
+    <div class="slo-card" style="background:#EAF3DE;border-color:#C0DD97;">
+      <div class="slo-num" style="color:var(--green)">SLO 2</div>
+      <div class="slo-title" style="color:var(--green)">Cross-sectoral governance &amp; coordination</div>
+      <div id="slo2-content">
+        <div style="font-size:12px;color:#999;padding:10px 0;">No governance log data available yet. This section will populate once entries are added to the Governance Log sheet.</div>
+      </div>
+    </div>
+
+    <div class="slo-card" style="background:var(--purple-lt);border-color:#AFA9EC;">
+      <div class="slo-num" style="color:var(--purple)">SLO 3</div>
+      <div class="slo-title" style="color:var(--purple)">Skilled workforce</div>
+      <div id="slo3-content"></div>
+    </div>
+
+    <div class="slo-card" style="background:var(--teal-lt);border-color:#9FE1CB;">
+      <div class="slo-num" style="color:var(--teal)">SLO 4</div>
+      <div class="slo-title" style="color:var(--teal)">Strengthened data systems</div>
+      <div id="slo4-content"></div>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-title">Overall programme status</div>
+    <div id="slo-overall-status" style="display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-top:4px;"></div>
+    <div class="insight" id="slo-insight" style="margin-top:12px;"></div>
+  </div>
+</div>
+
+<script>
+// ═══════════════════════════════════════════════════════════════
+// SASHAKT LIVE DASHBOARD — Google Sheets gviz/tq data connector
+// Reads ONLY from the live Google Sheet. No simulated/sample data.
+// Sheet ID: 1Eajxse6okC6JakiRSe8qdR9zeEFAcAe9hChpCZCOjzk
+// ═══════════════════════════════════════════════════════════════
+
+const SHEET_ID = '1Eajxse6okC6JakiRSe8qdR9zeEFAcAe9hChpCZCOjzk';
+
+const CAT_COLS = {
+  Infrastructure: ['1.1','1.2','1.3','1.4','1.5','1.6'],
+  Logistics:      ['2.1','2.2','2.3','2.4','2.5','2.6','2.7','2.8'],
+  IEC:            ['3.1','3.2','3.3'],
+  Commodities:    ['4.1','4.2','4.3','4.4','4.5','4.6','4.7','4.8','4.9','4.10','4.11'],
+  Equipments:     ['5.1','5.2','5.3','5.4','5.5','5.6','5.7','5.8'],
+  Records:        ['6.1','6.2','6.3','6.4','6.5','6.6','6.7','6.8','6.9','6.10'],
+  Monitoring:     ['7.1','7.2','7.3','7.4'],
+  Knowledge:      ['8.1','8.2','8.3','8.4','8.5'],
+};
+const BINARY_CATS = new Set(['Commodities','Monitoring','Knowledge']);
+
+let DATA = null;
+let GOV_ROWS = [];
+let loadErrors = [];
+
+// ─── FETCH ──────────────────────────────────────────────────
+function buildGvizUrl(sheetId, sheetName) {
+  return `https://docs.google.com/spreadsheets/d/${sheetId}/gviz/tq?tqx=out:json&sheet=${encodeURIComponent(sheetName)}`;
+}
+
+async function fetchSheetTab(sheetName) {
+  const url = buildGvizUrl(SHEET_ID, sheetName);
+  let res;
+  try {
+    res = await fetch(url);
+  } catch (networkErr) {
+    // fetch() throws "Failed to fetch" for network-layer failures (CORS, no connectivity, file:// origin)
+    if (window.location.protocol === 'file:') {
+      throw new Error(`Network request blocked. This page is open as a local file (file://) — browsers block cross-origin requests from local files. Open this dashboard via a web server (e.g. GitHub Pages, or run "python3 -m http.server" and visit http://localhost:8000) instead of double-clicking the HTML file.`);
+    }
+    throw new Error(`Network request to Google Sheets failed for "${sheetName}". This usually means: (1) no internet connection, (2) a browser extension or firewall is blocking the request, or (3) the sheet's sharing setting isn't "Anyone with the link". Check Share settings on the sheet, then reload.`);
+  }
+  if (!res.ok) throw new Error(`HTTP ${res.status} fetching "${sheetName}" — if this is 404, check the tab is named exactly "${sheetName}"; if 403, the sheet isn't shared publicly yet.`);
+  const text = await res.text();
+  const match = text.match(/google\.visualization\.Query\.setResponse\(([\s\S]*)\);?\s*$/);
+  if (!match) {
+    if (text.includes('accounts.google.com') || text.includes('ServiceLogin')) {
+      throw new Error(`Google is requesting sign-in for "${sheetName}" — the sheet is not yet public. Go to Share → Anyone with the link → Viewer, then reload this page.`);
+    }
+    throw new Error(`Unexpected response format for "${sheetName}" — check sheet name and sharing settings.`);
+  }
+  const json = JSON.parse(match[1]);
+  if (json.status === 'error') {
+    const msg = (json.errors && json.errors[0] && json.errors[0].detailed_message) || 'Unknown sheet error';
+    throw new Error(`"${sheetName}": ${msg}`);
+  }
+  return parseGviz(json);
+}
+
+function parseGviz(json) {
+  if (!json.table || !json.table.cols) return { cols: [], rows: [] };
+  const cols = json.table.cols.map(c => c.label || '');
+  const rows = (json.table.rows || [])
+    .filter(r => r && r.c && r.c.some(c => c && c.v !== null && c.v !== undefined && c.v !== ''))
+    .map(r => {
+      const obj = {};
+      cols.forEach((col, i) => {
+        const cell = r.c[i];
+        obj[col] = cell ? (cell.v !== null && cell.v !== undefined ? cell.v : '') : '';
+      });
+      return obj;
+    });
+  return { cols, rows };
+}
+
+async function fetchSheetData() {
+  showLoading(true);
+  showError(false);
+  loadErrors = [];
+
+  // Master sheet is required — everything else is optional and fails soft
+  let masterParsed = null;
+  try {
+    masterParsed = await fetchSheetTab('Master');
+  } catch (e) {
+    console.error('Master sheet fetch failed:', e);
+    showLoading(false);
+    showError(true, e.message || String(e));
+    return;
+  }
+
+  // Governance Log — optional, fails soft to empty
+  try {
+    const govParsed = await fetchSheetTab('Governance Log');
+    GOV_ROWS = govParsed.rows.filter(r => Object.values(r).some(v => v !== ''));
+  } catch (e) {
+    console.warn('Governance Log fetch failed (non-fatal):', e.message);
+    GOV_ROWS = [];
+  }
+
+  try {
+    DATA = computeData(masterParsed);
+    renderAll();
+    showLoading(false);
+    showError(false);
+  } catch (e) {
+    console.error('Compute/render error:', e);
+    showLoading(false);
+    showError(true, 'Data loaded but could not be processed: ' + e.message);
+  }
+}
+
+// ─── COMPUTE AGGREGATES FROM RAW MASTER ROWS ──────────────────
+function computeData({ cols, rows }) {
+  function scoreRow(row, cat) {
+    const prefixes = CAT_COLS[cat];
+    const matchingCols = cols.filter(c => prefixes.some(p => c.startsWith(p + ' ') || c === p));
+    if (matchingCols.length === 0) return null;
+    let sum = 0, max = 0;
+    for (const col of matchingCols) {
+      const v = parseFloat(row[col]);
+      if (isNaN(v)) continue;
+      max += 1;
+      if (BINARY_CATS.has(cat)) {
+        sum += (v === 1) ? 1 : 0;
+      } else {
+        if (v === 1) sum += 1;
+        else if (v === 2) sum += 0.5;
+      }
+    }
+    return max > 0 ? sum / max : null;
+  }
+
+  function hrScore(row) {
+    const trained = (row['Trained AFHC (Yes/No)'] || '').toString().toLowerCase();
+    const designation = (row['Designation'] || '').toString().trim();
+    if (!designation) return 0;
+    return trained === 'yes' || trained === 'yea' ? 1 : 0.5;
+  }
+
+  function overallScore(row) {
+    const cats = Object.keys(CAT_COLS);
+    const scores = cats.map(c => scoreRow(row, c)).filter(s => s !== null);
+    const hrS = hrScore(row);
+    const all = [...scores, hrS];
+    return all.length > 0 ? all.reduce((a,b) => a+b, 0) / all.length : 0;
+  }
+
+  function readinessBand(s) {
+    if (s >= 0.8) return 'Functional';
+    if (s >= 0.6) return 'Moderate';
+    return 'NonFunctional';
+  }
+
+  const facilityMap = {};
+  for (const row of rows) {
+    if (!row['District'] || !row['Facility Name']) continue;
+    const key = `${row['District']}||${row['Facility Name']}`;
+    const vn = parseInt(row['Visit Number']) || 0;
+    if (!facilityMap[key] || vn >= facilityMap[key].visitNum) {
+      const catScores = {};
+      for (const cat of Object.keys(CAT_COLS)) {
+        const s = scoreRow(row, cat);
+        catScores[cat] = s !== null ? Math.round(s * 1000) / 10 : 0;
+      }
+      const overall = overallScore(row);
+      facilityMap[key] = {
+        d: row['District'],
+        n: row['Facility Name'],
+        type: row['Facility Type'],
+        block: row['Block'],
+        visitNum: vn,
+        visitType: row['Visit Type'],
+        visitDate: row['Date of Visit'],
+        observer: row['Name of Observer'],
+        s: Math.round(overall * 1000) / 10,
+        band: readinessBand(overall),
+        staffName: row['Name of Staffs at AFHC'],
+        staffDesig: row['Designation'],
+        trainedStatus: row['Trained AFHC (Yes/No)'],
+        expDays: parseFloat(row['No. of days expected in AFHC']) || 0,
+        perfDays: parseFloat(row['No. of days performed in AFHC']) || 0,
+        hrGap: parseFloat(row['HR Attendance Gap']) || 0,
+        primaryBarrier: row['Primary Barrier Category'] || '',
+        keyObs: row['Key Observation'] || '',
+        ...catScores
+      };
+    }
+  }
+
+  const facilities = Object.values(facilityMap);
+  const districts = [...new Set(facilities.map(f => f.d))].filter(Boolean).sort();
+
+  const bandCounts = {};
+  for (const d of districts) {
+    const dFacs = facilities.filter(f => f.d === d);
+    bandCounts[d] = {
+      Functional: dFacs.filter(f => f.band === 'Functional').length,
+      Moderate: dFacs.filter(f => f.band === 'Moderate').length,
+      NonFunctional: dFacs.filter(f => f.band === 'NonFunctional').length,
+      total: dFacs.length
+    };
+  }
+
+  const catKeys = Object.keys(CAT_COLS);
+  const catOverall = {};
+  for (const cat of catKeys) {
+    const vals = facilities.map(f => f[cat]).filter(v => !isNaN(v));
+    catOverall[cat] = vals.length > 0 ? Math.round(vals.reduce((a,b)=>a+b,0)/vals.length * 10) / 10 : 0;
+  }
+
+  const distCat = {};
+  for (const d of districts) {
+    distCat[d] = {};
+    const dFacs = facilities.filter(f => f.d === d);
+    for (const cat of catKeys) {
+      const vals = dFacs.map(f => f[cat]).filter(v => !isNaN(v));
+      distCat[d][cat] = vals.length > 0 ? Math.round(vals.reduce((a,b)=>a+b,0)/vals.length * 10) / 10 : 0;
+    }
+  }
+
+  const hrGaps = facilities
+    .filter(f => f.hrGap > 0)
+    .map(f => ({ d: f.d, n: f.n, exp: f.expDays, perf: f.perfDays, gap: f.hrGap }))
+    .sort((a,b) => b.gap - a.gap);
+
+  const totalFac = facilities.length;
+  const functionalCount = facilities.filter(f => f.band === 'Functional').length;
+  const avgReadiness = facilities.length > 0
+    ? Math.round(facilities.reduce((a,b) => a + b.s, 0) / facilities.length * 10) / 10
+    : 0;
+
+  const dates = rows.map(r => r['Date of Visit']).filter(Boolean);
+  const lastDate = dates.length > 0 ? dates[dates.length-1] : '';
+  const firstDate = dates.length > 0 ? dates[0] : '';
+
+  const baselineFacs = facilities.filter(f => f.visitType === 'Baseline');
+  const followupRowsCount = rows.filter(r => r['Visit Type'] && r['Visit Type'] !== 'Baseline').length;
+
+  return {
+    facilities, districts, bandCounts, catOverall, distCat, hrGaps,
+    totalFac, functionalCount, avgReadiness, lastDate, firstDate,
+    baselineCount: baselineFacs.length,
+    followupCount: followupRowsCount,
+    rawRows: rows
+  };
+}
+
+// ─── HELPERS ────────────────────────────────────────────────
+function bandColor(v) { return v >= 80 ? '#97C459' : v >= 60 ? '#FAC775' : '#F09595'; }
+function bandTextColor(v) { return v >= 80 ? '#27500A' : v >= 60 ? '#633806' : '#791F1F'; }
+function catColor(v) { return v >= 70 ? '#97C459' : v >= 50 ? '#FAC775' : '#F09595'; }
+function catTextColor(v) { return v >= 70 ? '#27500A' : v >= 50 ? '#633806' : '#791F1F'; }
+function bandTag(band) {
+  if (band === 'Functional') return '<span class="tag tag-func">Functional</span>';
+  if (band === 'Moderate') return '<span class="tag tag-mod">Moderate</span>';
+  return '<span class="tag tag-nf">Non-functional</span>';
+}
+function esc(s) {
+  if (s === null || s === undefined) return '';
+  return String(s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+}
+
+// ─── LOADING / ERROR STATE ──────────────────────────────────
+function showLoading(on) {
+  const el = document.getElementById('loading-banner');
+  if (el) el.style.display = on ? 'flex' : 'none';
+}
+function showError(on, msg) {
+  const el = document.getElementById('error-banner');
+  if (!el) return;
+  el.style.display = on ? 'flex' : 'none';
+  if (on && msg) el.querySelector('.error-msg').textContent = msg;
+}
+
+// ─── RENDER ALL ─────────────────────────────────────────────
+function renderAll() {
+  updateChips();
+  renderDistStacks();
+  renderCatBars();
+  renderHeatmap();
+  renderProgressPage();
+  renderFieldActivityPage();
+  renderGovernancePage();
+  renderSloPage();
+  updateDistrictPage();
+  updateFacDistrict();
+}
+
+function updateChips() {
+  const d = DATA;
+  const el = id => document.getElementById(id);
+  if (el('chip-total-fac')) el('chip-total-fac').textContent = `${d.totalFac} facilities assessed`;
+  if (el('chip-districts')) el('chip-districts').textContent = `${d.districts.length} districts`;
+  if (el('chip-date-range')) {
+    el('chip-date-range').textContent = (d.firstDate && d.lastDate)
+      ? (d.firstDate === d.lastDate ? d.lastDate : `${d.firstDate} – ${d.lastDate}`)
+      : 'No visit dates recorded';
+  }
+  if (el('nav-date-chip')) el('nav-date-chip').textContent = `Live · updated ${new Date().toLocaleTimeString('en-IN',{hour:'2-digit',minute:'2-digit'})}`;
+
+  const heroGrid = document.querySelector('#p0 .hero-grid');
+  if (heroGrid) {
+    const worstCat = Object.entries(d.catOverall).filter(([,v])=>v>0 || d.totalFac>0).sort((a,b)=>a[1]-b[1])[0];
+    heroGrid.innerHTML = `
+      <div class="hero">
+        <div class="hero-label">Facilities assessed</div>
+        <div class="hero-val">${d.totalFac}</div>
+        <div class="hero-sub">${d.districts.length} districts · live data</div>
+      </div>
+      <div class="hero">
+        <div class="hero-label">Functional (≥80%)</div>
+        <div class="hero-val" style="color:${d.totalFac>0 && d.functionalCount < d.totalFac*0.25 ? 'var(--red-mid)' : 'var(--green)'}">
+          ${d.functionalCount} <span style="font-size:16px;font-weight:400;color:#999">/ ${d.totalFac}</span>
+        </div>
+        <div class="hero-sub">${d.totalFac>0?Math.round(d.functionalCount/d.totalFac*1000)/10:0}% of assessed</div>
+      </div>
+      <div class="hero">
+        <div class="hero-label">Average readiness</div>
+        <div class="hero-val" style="color:${bandTextColor(d.avgReadiness)}">${d.totalFac>0?d.avgReadiness+'%':'—'}</div>
+        <div class="hero-sub">Across all ${d.totalFac} facilities</div>
+      </div>
+      <div class="hero">
+        <div class="hero-label">Weakest category</div>
+        <div class="hero-val" style="color:var(--red-mid)">${worstCat ? worstCat[1]+'%' : '—'}</div>
+        <div class="hero-sub">${worstCat ? worstCat[0] : 'No data'}</div>
+      </div>`;
+  }
+
+  const alertEl = document.querySelector('#p0 .hero-alert .alert-text');
+  const alertSub = document.querySelector('#p0 .hero-alert .alert-sub');
+  if (alertEl) {
+    if (d.totalFac === 0) {
+      alertEl.textContent = 'No facility data found in the Master sheet';
+      if (alertSub) alertSub.textContent = 'Add visit rows to the Master sheet to populate this dashboard.';
+    } else {
+      const pct = Math.round((1 - d.functionalCount/d.totalFac)*100);
+      alertEl.textContent = `Only ${d.functionalCount} of ${d.totalFac} facilities meet RKSK functional criteria — ${pct}% are not ready to serve adolescents`;
+      const worstCatEntry = Object.entries(d.catOverall).sort((a,b)=>a[1]-b[1])[0];
+      const worstDist = d.districts.map(dist => ({
+        d: dist,
+        avg: d.facilities.filter(f=>f.d===dist).reduce((a,b)=>a+b.s,0) / (d.facilities.filter(f=>f.d===dist).length||1)
+      })).sort((a,b)=>a.avg-b.avg)[0];
+      if (alertSub && worstCatEntry) {
+        alertSub.textContent = `${worstCatEntry[0]} compliance is the single biggest gap at ${worstCatEntry[1]}%${worstDist ? ` · ${worstDist.d} district requires urgent attention at ${Math.round(worstDist.avg)}% average readiness` : ''}`;
+      }
+    }
+  }
+}
+
+// ─── PAGE 1: STATE OVERVIEW ─────────────────────────────────
+function renderDistStacks() {
+  const el = document.getElementById('dist-stacks');
+  if (!el || !DATA) return;
+  if (DATA.districts.length === 0) {
+    el.innerHTML = '<div style="color:#999;font-size:12px;padding:12px 0;">No district data available.</div>';
+    return;
+  }
+  let html = '';
+  for (const d of DATA.districts) {
+    const b = DATA.bandCounts[d];
+    if (!b) continue;
+    const t = b.total;
+    const rPct = t>0 ? Math.round(b.NonFunctional/t*100) : 0;
+    const aPct = t>0 ? Math.round(b.Moderate/t*100) : 0;
+    const gPct = t>0 ? Math.round(b.Functional/t*100) : 0;
+    const shortName = d.replace('West Singhbhum','W. Singhbhum').replace('East Singhbhum','E. Singhbhum');
+    html += `<div class="stack-row">
+      <div class="stack-name" style="font-size:11px;">${esc(shortName)}</div>
+      <div class="stack-track">
+        <div class="seg-r" style="width:${rPct}%" title="${b.NonFunctional} non-functional"></div>
+        <div class="seg-a" style="width:${aPct}%" title="${b.Moderate} moderate"></div>
+        <div class="seg-g" style="width:${gPct}%" title="${b.Functional} functional"></div>
+      </div>
+      <div style="font-size:11px;color:#888;margin-left:6px;width:30px;text-align:right;">${t}</div>
+    </div>`;
+  }
+  el.innerHTML = html;
+}
+
+function renderCatBars() {
+  const el = document.getElementById('cat-bars');
+  if (!el || !DATA) return;
+  const cats = Object.entries(DATA.catOverall).sort((a,b)=>a[1]-b[1]);
+  let html = '<div style="position:relative;">';
+  for (const [cat, val] of cats) {
+    html += `<div class="bar-row">
+      <div class="bar-label">${esc(cat)}</div>
+      <div class="bar-track">
+        <div class="bar-fill" style="width:${val}%;background:${catColor(val)};"></div>
+        <div class="bench"></div>
+      </div>
+      <div class="bar-pct" style="color:${catTextColor(val)};">${val}%</div>
+    </div>`;
+  }
+  html += '</div>';
+  el.innerHTML = html;
+}
+
+function renderHeatmap() {
+  const el = document.getElementById('heatmap-table');
+  if (!el || !DATA) return;
+  const cats = Object.keys(DATA.catOverall);
+  if (DATA.districts.length === 0) {
+    el.innerHTML = '<tr><td style="color:#999;padding:12px;">No data available.</td></tr>';
+    return;
+  }
+  let html = `<thead><tr><th class="dist-head">District</th>${cats.map(c=>`<th style="font-size:9px;">${esc(c.substring(0,4))}</th>`).join('')}<th>Avg</th></tr></thead><tbody>`;
+  for (const d of DATA.districts) {
+    const shortName = d.replace('West Singhbhum','W. Singhbhum').replace('East Singhbhum','E. Singhbhum');
+    const dc = DATA.distCat[d];
+    if (!dc) continue;
+    const dFacs = DATA.facilities.filter(f => f.d === d);
+    const avg = dFacs.length > 0 ? Math.round(dFacs.reduce((a,b)=>a+b.s,0)/dFacs.length*10)/10 : 0;
+    html += `<tr><td>${esc(shortName)}</td>`;
+    for (const cat of cats) {
+      const v = dc[cat] || 0;
+      html += `<td style="background:${catColor(v)};color:${catTextColor(v)};">${v}%</td>`;
+    }
+    html += `<td style="font-weight:700;color:${bandTextColor(avg)};">${avg}%</td></tr>`;
+  }
+  html += '</tbody>';
+  el.innerHTML = html;
+}
+
+// ─── PAGE 2: DISTRICT DEEP-DIVE ─────────────────────────────
+function updateDistrictPage() {
+  if (!DATA) return;
+  const sel = document.getElementById('dist-select');
+  if (sel) {
+    const current = sel.value;
+    if (DATA.districts.length === 0) {
+      sel.innerHTML = '<option value="">No districts available</option>';
+    } else {
+      sel.innerHTML = DATA.districts.map(d => `<option value="${esc(d)}" ${d===current?'selected':''}>${esc(d)}</option>`).join('');
+    }
+  }
+  const dist = sel ? sel.value : (DATA.districts[0] || '');
+  const heroEl = document.getElementById('dist-heroes');
+  const facEl = document.getElementById('dist-fac-table');
+  const catEl = document.getElementById('dist-cat-bars');
+  const hrEl = document.getElementById('dist-hr-table');
+  const insEl = document.getElementById('dist-insight');
+
+  if (!dist) {
+    if (heroEl) heroEl.innerHTML = '<div style="color:#999;font-size:12px;padding:12px;">No district selected.</div>';
+    if (facEl) facEl.innerHTML = '';
+    if (catEl) catEl.innerHTML = '';
+    if (hrEl) hrEl.innerHTML = '';
+    if (insEl) insEl.innerHTML = '';
+    return;
+  }
+
+  const dFacs = DATA.facilities.filter(f => f.d === dist).sort((a,b) => b.s - a.s);
+  const dc = DATA.distCat[dist] || {};
+  const bc = DATA.bandCounts[dist] || {Functional:0,Moderate:0,NonFunctional:0,total:0};
+  const avgR = dFacs.length > 0 ? Math.round(dFacs.reduce((a,b)=>a+b.s,0)/dFacs.length*10)/10 : 0;
+
+  if (heroEl) {
+    heroEl.innerHTML = `
+      <div class="hero"><div class="hero-label">Facilities</div><div class="hero-val">${bc.total}</div><div class="hero-sub">${esc(dist)}</div></div>
+      <div class="hero"><div class="hero-label">Functional</div><div class="hero-val" style="color:${bc.Functional>0?'var(--green)':'var(--red-mid)'};">${bc.Functional}</div><div class="hero-sub">of ${bc.total}</div></div>
+      <div class="hero"><div class="hero-label">Average readiness</div><div class="hero-val" style="color:${bandTextColor(avgR)}">${avgR}%</div><div class="hero-sub">District average</div></div>
+      <div class="hero"><div class="hero-label">Non-functional</div><div class="hero-val" style="color:var(--red-mid)">${bc.NonFunctional}</div><div class="hero-sub">Require intervention</div></div>`;
+  }
+
+  if (facEl) {
+    let fHtml = '<table class="data-table"><thead><tr><th>Facility</th><th>Type</th><th>Score</th><th>Status</th></tr></thead><tbody>';
+    for (const f of dFacs) {
+      fHtml += `<tr>
+        <td>${esc(f.n)}</td>
+        <td style="color:#888;font-size:11px;">${esc(f.type || '')}</td>
+        <td><span class="fac-score" style="background:${bandColor(f.s)};color:${bandTextColor(f.s)};">${f.s}%</span></td>
+        <td>${bandTag(f.band)}</td>
+      </tr>`;
+    }
+    fHtml += '</tbody></table>';
+    facEl.innerHTML = fHtml;
+  }
+
+  if (catEl) {
+    const cats = Object.entries(dc).sort((a,b)=>a[1]-b[1]);
+    let cHtml = '';
+    for (const [cat, val] of cats) {
+      cHtml += `<div class="bar-row">
+        <div class="bar-label">${esc(cat)}</div>
+        <div class="bar-track"><div class="bar-fill" style="width:${val}%;background:${catColor(val)};"></div><div class="bench"></div></div>
+        <div class="bar-pct" style="color:${catTextColor(val)}">${val}%</div>
+      </div>`;
+    }
+    catEl.innerHTML = cHtml;
+  }
+
+  if (hrEl) {
+    const hrFacs = dFacs.filter(f => f.hrGap > 0).sort((a,b) => b.hrGap - a.hrGap);
+    if (hrFacs.length === 0) {
+      hrEl.innerHTML = '<div style="font-size:12px;color:#3B6D11;padding:12px 0;">No significant HR attendance gaps in this district.</div>';
+    } else {
+      let hHtml = '<table class="data-table"><thead><tr><th>Facility</th><th>Counsellor</th><th>Expected days</th><th>Days present</th><th>Gap</th></tr></thead><tbody>';
+      for (const f of hrFacs) {
+        const gapPct = f.expDays > 0 ? Math.round(f.hrGap/f.expDays*100) : 0;
+        hHtml += `<tr>
+          <td>${esc(f.n)}</td>
+          <td style="font-size:11px;color:#666;">${esc(f.staffName) || '—'}</td>
+          <td style="text-align:center;">${f.expDays}</td>
+          <td style="text-align:center;color:var(--red-mid);font-weight:600;">${f.perfDays}</td>
+          <td style="text-align:center;"><span style="background:var(--red-lt);color:var(--red);padding:2px 7px;border-radius:3px;font-weight:600;font-size:11px;">−${f.hrGap}d (${gapPct}%)</span></td>
+        </tr>`;
+      }
+      hHtml += '</tbody></table>';
+      hrEl.innerHTML = hHtml;
+    }
+  }
+
+  if (insEl) {
+    const worstCat = Object.entries(dc).sort((a,b)=>a[1]-b[1])[0];
+    const bestCat = Object.entries(dc).sort((a,b)=>b[1]-a[1])[0];
+    const hrGapFacs = dFacs.filter(f => f.hrGap > 0).length;
+    insEl.innerHTML = `<strong>${esc(dist)}</strong> has ${bc.Functional} functional, ${bc.Moderate} moderate, and ${bc.NonFunctional} non-functional facilities.
+    Average readiness is ${avgR}%.
+    ${worstCat ? `Weakest category: <strong>${esc(worstCat[0])} at ${worstCat[1]}%</strong>` : ''} ·
+    ${bestCat ? `Strongest: <strong>${esc(bestCat[0])} at ${bestCat[1]}%</strong>` : ''}.
+    ${hrGapFacs > 0 ? `<strong>${hrGapFacs} facilities</strong> have HR attendance gaps — counsellors present but not completing mandated days.` : 'No significant HR attendance gaps detected.'}`;
+  }
+}
+
+// ─── PAGE 3: FACILITY FACT SHEET ────────────────────────────
+function updateFacDistrict() {
+  if (!DATA) return;
+  const dSel = document.getElementById('fac-dist-select');
+  if (dSel) {
+    const current = dSel.value;
+    if (DATA.districts.length === 0) {
+      dSel.innerHTML = '<option value="">No districts</option>';
+    } else {
+      dSel.innerHTML = DATA.districts.map(d => `<option value="${esc(d)}" ${d===current?'selected':''}>${esc(d)}</option>`).join('');
+    }
+  }
+  const dist = dSel ? dSel.value : (DATA.districts[0] || '');
+  const fSel = document.getElementById('fac-select');
+  if (fSel) {
+    const dFacs = DATA.facilities.filter(f => f.d === dist).sort((a,b)=>a.n.localeCompare(b.n));
+    fSel.innerHTML = dFacs.length > 0
+      ? dFacs.map(f => `<option value="${esc(f.n)}">${esc(f.n)}</option>`).join('')
+      : '<option value="">No facilities</option>';
+  }
+  updateFacilityPage();
+}
+
+function updateFacilityPage() {
+  if (!DATA) return;
+  const dist = (document.getElementById('fac-dist-select') || {}).value || DATA.districts[0];
+  const facName = (document.getElementById('fac-select') || {}).value;
+
+  const heroEl = document.getElementById('fac-hero');
+  if (!dist || !facName) {
+    if (heroEl) heroEl.innerHTML = '<div style="color:#999;font-size:12px;padding:12px;grid-column:1/-1;">No facility data available.</div>';
+    ['fac-cat-bars','fac-hr','fac-observation','fac-gaps'].forEach(id => {
+      const e = document.getElementById(id); if (e) e.innerHTML = '';
+    });
+    return;
+  }
+
+  const fac = DATA.facilities.find(f => f.d === dist && f.n === facName);
+  if (!fac) return;
+
+  const cats = Object.keys(CAT_COLS);
+  const band2 = fac.band === 'Functional' ? '≥80% · Functional' : fac.band === 'Moderate' ? '60–79% · Moderate' : '<60% · Non-functional';
+
+  heroEl.innerHTML = `
+    <div class="hero"><div class="hero-label">Overall readiness</div><div class="hero-val" style="color:${bandTextColor(fac.s)}">${fac.s}%</div><div class="hero-sub">${band2}</div></div>
+    <div class="hero"><div class="hero-label">District</div><div class="hero-val" style="font-size:16px;">${esc(dist.replace('West ','W. ').replace('East ','E. '))}</div><div class="hero-sub">${esc(fac.type || '')} · ${esc(fac.block || '')}</div></div>
+    <div class="hero"><div class="hero-label">Worst category</div><div class="hero-val" style="font-size:16px;color:#A32D2D">${esc(cats.sort((a,b)=>fac[a]-fac[b])[0])}</div><div class="hero-sub">${fac[cats.sort((a,b)=>fac[a]-fac[b])[0]]}%</div></div>`;
+
+  let cbHtml = '';
+  for (const cat of [...cats].sort((a,b) => fac[a]-fac[b])) {
+    const v = fac[cat];
+    cbHtml += `<div class="bar-row"><div class="bar-label">${esc(cat)}</div><div class="bar-track"><div class="bar-fill" style="width:${v}%;background:${catColor(v)}"></div><div class="bench"></div></div><div class="bar-pct" style="color:${catTextColor(v)}">${v}%</div></div>`;
+  }
+  document.getElementById('fac-cat-bars').innerHTML = cbHtml;
+
+  const hrEl = document.getElementById('fac-hr');
+  if (fac.hrGap > 0) {
+    const pct = fac.expDays > 0 ? Math.round(fac.perfDays/fac.expDays*100) : 0;
+    hrEl.innerHTML = `<div style="font-size:12px;line-height:1.8;">
+      <div style="margin-bottom:8px;"><span style="color:#888;">Counsellor:</span> <strong>${esc(fac.staffName) || '—'} (${esc(fac.staffDesig) || '—'})</strong></div>
+      <div style="margin-bottom:8px;"><span style="color:#888;">Trained (AFHS):</span> <strong>${esc(fac.trainedStatus) || '—'}</strong></div>
+      <div style="margin-bottom:8px;"><span style="color:#888;">Expected days:</span> <strong>${fac.expDays}</strong></div>
+      <div style="margin-bottom:8px;"><span style="color:#888;">Days present:</span> <strong style="color:#A32D2D;">${fac.perfDays}</strong></div>
+      <div><span style="color:#888;">Attendance gap:</span> <strong style="color:#A32D2D;">−${fac.hrGap} days (${100-pct}% absent)</strong></div>
+      <div class="insight" style="margin-top:10px;">Counsellor is posted${(fac.trainedStatus||'').toLowerCase()==='yes'?' and trained':''} but attending only ${pct}% of mandated days. Likely diversion — raise at DRCHO level.</div>
+    </div>`;
+  } else if (fac.staffName) {
+    hrEl.innerHTML = `<div style="font-size:12px;line-height:1.8;">
+      <div style="margin-bottom:8px;"><span style="color:#888;">Counsellor:</span> <strong>${esc(fac.staffName)} (${esc(fac.staffDesig) || '—'})</strong></div>
+      <div style="margin-bottom:8px;"><span style="color:#888;">Trained (AFHS):</span> <strong>${esc(fac.trainedStatus) || '—'}</strong></div>
+      <div style="color:var(--green);font-weight:500;margin-top:8px;">✓ No significant HR attendance gap recorded.</div>
+    </div>`;
+  } else {
+    hrEl.innerHTML = '<div style="font-size:12px;color:var(--red-mid);padding:10px 0;font-weight:500;">No HR data recorded for this facility.</div>';
+  }
+
+  const obs = fac.s>=80 ? 'Facility meets RKSK functional criteria. Maintain current standards and focus on sustaining monitoring documentation and records.'
+    : fac.s>=60 ? 'Facility has moderate readiness. Core infrastructure and HR are in place. Targeted improvements in lowest-scoring categories will push this facility to functional status.'
+    : fac.s>=30 ? 'Facility has significant readiness gaps requiring structured support. Multiple category failures suggest systemic issues beyond single-item fixes.'
+    : 'Facility has critical readiness gaps. Basic infrastructure or HR may be absent. Requires district-level administrative intervention before programmatic support can be effective.';
+  document.getElementById('fac-observation').textContent = fac.keyObs || obs;
+
+  const sortedCats = [...cats].sort((a,b) => fac[a]-fac[b]);
+  let gapHtml = '<div style="display:flex;flex-direction:column;gap:8px;">';
+  for (let i = 0; i < Math.min(3, sortedCats.length); i++) {
+    const cat = sortedCats[i];
+    const v = fac[cat];
+    gapHtml += `<div style="display:flex;align-items:center;gap:10px;padding:8px 10px;background:#FFF8F8;border-radius:6px;border-left:3px solid #F09595;">
+      <div style="font-size:12px;font-weight:600;color:#791F1F;min-width:18px;">${i+1}</div>
+      <div style="flex:1;"><div style="font-size:12px;font-weight:600;color:#333;">${esc(cat)} — ${v}%</div>
+      <div style="font-size:11px;color:#888;margin-top:2px;">${esc(getCatAction(cat,v))}</div></div></div>`;
+  }
+  gapHtml += '</div>';
+  document.getElementById('fac-gaps').innerHTML = gapHtml;
+}
+
+function getCatAction(cat, v) {
+  const actions = {
+    Monitoring:'Establish supervisor visit register. MOIC to sign after each fortnightly visit.',
+    IEC:'Request IEC materials from district store. Display contraceptive kit and local-language handouts.',
+    Infrastructure:'Check signage, time schedule display, and privacy screen — low-cost quick fixes.',
+    Commodities:'Raise indent for sanitary napkins and RTI/STI drugs — most commonly absent items.',
+    Records:'Start maintaining PE referral register (Prarup-3) and AFHC App outreach session entries.',
+    Equipments:'Check torch and haemoglobinometer — most commonly absent equipment items.',
+    Logistics:'Bedside screen and step tool are commonly missing — procure from district store.',
+    Knowledge:'Clinical knowledge training needed — arrange refresher with DRCHO.',
+    HR:'Counsellor posting or attendance issue — escalate to DRCHO for deployment/diversion resolution.'
+  };
+  return actions[cat] || 'Review specific items with DPM on next visit.';
+}
+
+// ─── PAGE 4: PROGRESS OVER TIME ─────────────────────────────
+function renderProgressPage() {
+  if (!DATA) return;
+  const sub = document.getElementById('progress-subtitle');
+  if (sub) {
+    sub.textContent = DATA.firstDate
+      ? `Baseline from ${DATA.firstDate} · ${DATA.followupCount > 0 ? DATA.followupCount + ' follow-up visit(s) recorded' : 'no follow-up visits recorded yet'}`
+      : 'No visit data available yet';
+  }
+
+  const heroEl = document.getElementById('progress-heroes');
+  if (heroEl) {
+    heroEl.innerHTML = `
+      <div class="hero"><div class="hero-label">Baseline visits</div><div class="hero-val">${DATA.baselineCount}</div><div class="hero-sub">${DATA.firstDate || '—'}</div></div>
+      <div class="hero"><div class="hero-label">Follow-up visits</div><div class="hero-val" style="color:${DATA.followupCount>0?'var(--green)':'#ccc'}">${DATA.followupCount}</div><div class="hero-sub">${DATA.followupCount>0?'Recorded in sheet':'None recorded yet'}</div></div>
+      <div class="hero"><div class="hero-label">Functional now</div><div class="hero-val" style="color:${DATA.totalFac>0 && DATA.functionalCount>=DATA.totalFac*0.25?'var(--green)':'var(--red-mid)'}">${DATA.functionalCount}</div><div class="hero-sub">of ${DATA.totalFac} facilities</div></div>
+      <div class="hero"><div class="hero-label">Avg readiness</div><div class="hero-val" style="color:${bandTextColor(DATA.avgReadiness)}">${DATA.totalFac>0?DATA.avgReadiness+'%':'—'}</div><div class="hero-sub">All facilities · latest visit</div></div>`;
+  }
+
+  const trendEl = document.getElementById('progress-trend');
+  if (trendEl) {
+    if (DATA.districts.length === 0) {
+      trendEl.innerHTML = '<div style="color:#999;font-size:12px;padding:12px 0;">No data available.</div>';
+    } else {
+      let tHtml = '';
+      const sortedDists = [...DATA.districts].map(d => {
+        const dFacs = DATA.facilities.filter(f => f.d === d);
+        const avg = dFacs.length > 0 ? Math.round(dFacs.reduce((a,b)=>a+b.s,0)/dFacs.length*10)/10 : 0;
+        return { d, avg };
+      }).sort((a,b) => b.avg - a.avg);
+      for (const { d, avg } of sortedDists) {
+        const sn = d.replace('West Singhbhum','W. Singhbhum').replace('East Singhbhum','E. Singhbhum');
+        tHtml += `<div class="bar-row"><div class="bar-label-left" style="width:100px;">${esc(sn)}</div><div class="bar-track"><div class="bar-fill" style="width:${avg}%;background:${bandColor(avg)}"></div></div><div class="bar-pct" style="color:${bandTextColor(avg)}">${avg}%</div></div>`;
+      }
+      trendEl.innerHTML = tHtml;
+    }
+  }
+
+  const funcEl = document.getElementById('progress-functional');
+  if (funcEl) {
+    if (DATA.totalFac === 0) {
+      funcEl.innerHTML = '<div style="color:#999;font-size:12px;padding:12px 0;">No data available.</div>';
+    } else {
+      const pct = Math.round(DATA.functionalCount/DATA.totalFac*100);
+      funcEl.innerHTML = `
+        <div style="font-size:48px;font-weight:700;color:${DATA.functionalCount>0?bandTextColor(pct):'var(--red-mid)'}">${DATA.functionalCount}</div>
+        <div style="font-size:12px;color:#999;">of ${DATA.totalFac} facilities (${pct}%)</div>
+        <div style="font-size:10px;color:#aaa;margin-top:12px;">Updates automatically as follow-up visit rows are added to the Master sheet.</div>`;
+    }
+  }
+}
+
+// ─── PAGE 5: FIELD ACTIVITY (from Governance Log, type-filtered) ─
+function renderFieldActivityPage() {
+  const el = document.getElementById('field-activity-content');
+  if (!el) return;
+
+  const fieldRows = GOV_ROWS.filter(r => {
+    const type = (r['Meeting Type'] || '').toString().toLowerCase();
+    return type.includes('field') || type.includes('visit');
+  });
+
+  if (GOV_ROWS.length === 0) {
+    el.innerHTML = `<div class="card"><div style="text-align:center;padding:40px 20px;color:#999;">
+      <div style="font-size:28px;margin-bottom:10px;">📋</div>
+      <div style="font-size:13px;font-weight:500;color:#666;">No field activity data in the Governance Log sheet yet</div>
+      <div style="font-size:11px;color:#aaa;margin-top:6px;">This page will populate automatically once entries are added to the Governance Log tab (use "Field visit" in the Meeting Type column).</div>
+    </div></div>`;
+    return;
+  }
+
+  if (fieldRows.length === 0) {
+    el.innerHTML = `<div class="card"><div style="text-align:center;padding:40px 20px;color:#999;">
+      <div style="font-size:28px;margin-bottom:10px;">📋</div>
+      <div style="font-size:13px;font-weight:500;color:#666;">No entries tagged as field visits</div>
+      <div style="font-size:11px;color:#aaa;margin-top:6px;">${GOV_ROWS.length} governance entries found, but none with Meeting Type containing "Field" or "Visit".</div>
+    </div></div>`;
+    return;
+  }
+
+  let html = '<div class="card"><div class="card-title">Field activity entries</div>';
+  for (const r of fieldRows) {
+    html += `<div class="gov-row">
+      <div class="gov-title">${esc(r['Attendees'] || 'Unknown')} · ${esc(r['District'] || '')}</div>
+      <div class="gov-meta">${esc(r['Date'] || '')} · ${esc(r['Meeting Type'] || '')}</div>
+      <div class="gov-decision">${esc(r['Key Decision / Commitment'] || r['Notes'] || 'No details recorded')}</div>
+      ${r['Status'] ? `<div style="margin-top:6px;"><span class="status-pill" style="background:var(--gray-lt);color:#555;">${esc(r['Status'])}</span></div>` : ''}
+    </div>`;
+  }
+  html += '</div>';
+  el.innerHTML = html;
+}
+
+// ─── PAGE 6: GOVERNANCE & DTF (from Governance Log sheet) ─────
+function renderGovernancePage() {
+  const el = document.getElementById('governance-content');
+  if (!el) return;
+
+  if (GOV_ROWS.length === 0) {
+    el.innerHTML = `<div class="card"><div style="text-align:center;padding:40px 20px;color:#999;">
+      <div style="font-size:28px;margin-bottom:10px;">📋</div>
+      <div style="font-size:13px;font-weight:500;color:#666;">No governance data available yet</div>
+      <div style="font-size:11px;color:#aaa;margin-top:6px;">Add rows to the Governance Log sheet (Date, District, Meeting Type, Attendees, Key Decision / Commitment, Owner, Due Date, Status, Notes) and this page will populate automatically.</div>
+    </div></div>`;
+    return;
+  }
+
+  const districtsWithMeetings = [...new Set(GOV_ROWS.map(r => r['District']).filter(Boolean))];
+  const completed = GOV_ROWS.filter(r => (r['Status']||'').toLowerCase().includes('complet') || (r['Status']||'').toLowerCase()==='done').length;
+  const pending = GOV_ROWS.length - completed;
+
+  let html = `<div class="hero-grid mb16">
+    <div class="hero"><div class="hero-label">Governance entries</div><div class="hero-val">${GOV_ROWS.length}</div><div class="hero-sub">Total logged</div></div>
+    <div class="hero"><div class="hero-label">Districts with entries</div><div class="hero-val" style="color:var(--amber)">${districtsWithMeetings.length}</div><div class="hero-sub">Out of ${DATA ? DATA.districts.length : '—'} active districts</div></div>
+    <div class="hero"><div class="hero-label">Completed</div><div class="hero-val" style="color:var(--green)">${completed}</div><div class="hero-sub">Commitments closed</div></div>
+    <div class="hero"><div class="hero-label">Pending / open</div><div class="hero-val" style="color:var(--amber)">${pending}</div><div class="hero-sub">Awaiting action</div></div>
+  </div>`;
+
+  html += '<div class="g2 mb12"><div class="card"><div class="card-title">Recent governance events</div>';
+  const sorted = [...GOV_ROWS].reverse(); // most recent first if sheet is appended chronologically
+  for (const r of sorted) {
+    const statusLower = (r['Status']||'').toLowerCase();
+    const pillColor = statusLower.includes('complet') || statusLower==='done' ? 'background:var(--green-lt);color:var(--green);'
+      : statusLower.includes('delay') ? 'background:var(--red-lt);color:var(--red);'
+      : 'background:var(--amber-lt);color:var(--amber);';
+    html += `<div class="gov-row">
+      <div class="gov-title">${esc(r['Meeting Type'] || 'Meeting')} · ${esc(r['District'] || '')}</div>
+      <div class="gov-meta">${esc(r['Date'] || '')} · ${esc(r['Attendees'] || '')}</div>
+      <div class="gov-decision">${esc(r['Key Decision / Commitment'] || 'No decision recorded')}</div>
+      ${r['Status'] ? `<div style="margin-top:6px;"><span class="status-pill" style="${pillColor}">${esc(r['Status'])}</span></div>` : ''}
+    </div>`;
+  }
+  html += '</div>';
+
+  html += '<div><div class="card mb12"><div class="card-title">Commitments tracker</div><table class="data-table"><tr><th>Decision</th><th>Owner</th><th>Due</th><th>Status</th></tr>';
+  for (const r of sorted) {
+    if (!r['Owner'] && !r['Due Date']) continue;
+    const statusLower = (r['Status']||'').toLowerCase();
+    const pillColor = statusLower.includes('complet') || statusLower==='done' ? 'background:var(--green-lt);color:var(--green);'
+      : statusLower.includes('delay') ? 'background:var(--red-lt);color:var(--red);'
+      : 'background:var(--amber-lt);color:var(--amber);';
+    html += `<tr>
+      <td>${esc((r['Key Decision / Commitment']||'').toString().substring(0,60))}${(r['Key Decision / Commitment']||'').length>60?'…':''}</td>
+      <td style="font-size:11px;">${esc(r['Owner'] || '—')}</td>
+      <td style="font-size:11px;">${esc(r['Due Date'] || '—')}</td>
+      <td><span class="status-pill" style="${pillColor}">${esc(r['Status'] || 'Open')}</span></td>
+    </tr>`;
+  }
+  html += '</table></div></div></div>';
+
+  el.innerHTML = html;
+}
+
+// ─── PAGE 7: SLO SCORECARD ───────────────────────────────────
+function renderSloPage() {
+  if (!DATA) return;
+  const sub = document.getElementById('slo-subtitle');
+  if (sub) sub.textContent = `Piramal's four Strategic Level Outcomes · ${DATA.firstDate ? 'baseline ' + DATA.firstDate : 'live data'}`;
+
+  // SLO 1 — live from Master sheet
+  const slo1 = document.getElementById('slo1-content');
+  if (slo1) {
+    if (DATA.totalFac === 0) {
+      slo1.innerHTML = '<div style="font-size:12px;color:#999;padding:10px 0;">No facility data available.</div>';
+    } else {
+      const pctFunctional = Math.round(DATA.functionalCount/DATA.totalFac*1000)/10;
+      const monitoring = DATA.catOverall['Monitoring'] || 0;
+      const commodities = DATA.catOverall['Commodities'] || 0;
+      const hrAvg = DATA.facilities.length > 0
+        ? Math.round(DATA.facilities.reduce((a,f)=>a + (f.staffName ? (((f.trainedStatus||'').toLowerCase()==='yes')?100:50) : 0),0) / DATA.facilities.length * 10)/10
+        : 0;
+      const pill = (v, invert) => {
+        const good = invert ? v < 40 : v >= 70;
+        const ok = invert ? v < 60 : v >= 50;
+        const bg = good ? '#EAF3DE' : ok ? '#FAEEDA' : '#F09595';
+        const fg = good ? 'var(--green)' : ok ? 'var(--amber)' : 'var(--red)';
+        return `background:${bg};color:${fg};`;
+      };
+      slo1.innerHTML = `
+        <div class="slo-indicator"><span>1.1 % functional facilities (≥80%)</span><span class="slo-pill" style="${pill(pctFunctional)}">${pctFunctional}%</span></div>
+        <div class="slo-indicator"><span>1.2 Average readiness score</span><span class="slo-pill" style="${pill(DATA.avgReadiness)}">${DATA.avgReadiness}%</span></div>
+        <div class="slo-indicator"><span>1.3 Commodities compliance</span><span class="slo-pill" style="${pill(commodities)}">${commodities}%</span></div>
+        <div class="slo-indicator"><span>1.4 HR trained &amp; present (proxy)</span><span class="slo-pill" style="${pill(hrAvg)}">${hrAvg}%</span></div>
+        <div class="slo-indicator"><span>1.5 Monitoring compliance</span><span class="slo-pill" style="${pill(monitoring)}">${monitoring}%</span></div>
+        <div style="margin-top:10px;font-size:11px;color:var(--navy-mid);line-height:1.5;">Live from Master sheet · ${DATA.totalFac} facilities assessed.</div>`;
+    }
+  }
+
+  // SLO 2 — from Governance Log
+  const slo2 = document.getElementById('slo2-content');
+  if (slo2) {
+    if (GOV_ROWS.length === 0) {
+      slo2.innerHTML = '<div style="font-size:12px;color:#999;padding:10px 0;">No governance log data available yet. This section will populate once entries are added to the Governance Log sheet.</div>';
+    } else {
+      const districtsWithMeetings = [...new Set(GOV_ROWS.map(r => r['District']).filter(Boolean))];
+      const completed = GOV_ROWS.filter(r => (r['Status']||'').toLowerCase().includes('complet')).length;
+      slo2.innerHTML = `
+        <div class="slo-indicator"><span>2.1 Districts with governance activity</span><span class="slo-pill" style="background:#FAEEDA;color:var(--amber);">${districtsWithMeetings.length} / ${DATA.districts.length}</span></div>
+        <div class="slo-indicator"><span>2.4 Commitments with written record</span><span class="slo-pill" style="background:#EAF3DE;color:var(--green);">${GOV_ROWS.length} tracked</span></div>
+        <div class="slo-indicator"><span>Completed commitments</span><span class="slo-pill" style="background:#EAF3DE;color:var(--green);">${completed}</span></div>
+        <div style="margin-top:10px;font-size:11px;color:var(--green);line-height:1.5;">Live from Governance Log sheet.</div>`;
+    }
+  }
+
+  // SLO 3 — Knowledge from Master (real), rest not tracked
+  const slo3 = document.getElementById('slo3-content');
+  if (slo3) {
+    const knowledge = DATA.catOverall['Knowledge'] || 0;
+    const hrGapCount = DATA.hrGaps.length;
+    slo3.innerHTML = `
+      <div class="slo-indicator"><span>3.2 Knowledge assessment (avg)</span><span class="slo-pill" style="background:${knowledge>=70?'#EAF3DE':'#FAEEDA'};color:${knowledge>=70?'var(--green)':'var(--amber)'};">${knowledge}%</span></div>
+      <div class="slo-indicator"><span>3.3 HR attendance gap</span><span class="slo-pill" style="background:#F09595;color:var(--red);">${hrGapCount} / ${DATA.totalFac} facilities</span></div>
+      <div class="slo-indicator"><span>3.4 / 3.5 Training tracker</span><span class="slo-pill" style="background:var(--gray-lt);color:var(--gray-mid);">Not tracked in sheet</span></div>
+      <div style="margin-top:10px;font-size:11px;color:var(--purple);line-height:1.5;">3.2 and 3.3 live from Master sheet. Training event tracking requires a separate sheet tab.</div>`;
+  }
+
+  // SLO 4 — Records from Master (real), rest not tracked
+  const slo4 = document.getElementById('slo4-content');
+  if (slo4) {
+    const records = DATA.catOverall['Records'] || 0;
+    slo4.innerHTML = `
+      <div class="slo-indicator"><span>4.1 / 4.3 Records compliance</span><span class="slo-pill" style="background:${records>=70?'#EAF3DE':'#FAEEDA'};color:${records>=70?'var(--green)':'var(--amber)'};">${records}%</span></div>
+      <div class="slo-indicator"><span>4.4 Dashboard live</span><span class="slo-pill" style="background:#EAF3DE;color:var(--green);">Live · this page</span></div>
+      <div class="slo-indicator"><span>4.2 / 4.5 Referral &amp; HMIS integration</span><span class="slo-pill" style="background:var(--gray-lt);color:var(--gray-mid);">Not tracked in sheet</span></div>
+      <div style="margin-top:10px;font-size:11px;color:var(--teal);line-height:1.5;">Records compliance live from Master sheet item 6.x. Referral-specific tracking (item 6.8) can be isolated on request.</div>`;
+  }
+
+  // Overall status
+  const overallEl = document.getElementById('slo-overall-status');
+  const insightEl = document.getElementById('slo-insight');
+  if (overallEl) {
+    const pctFunctional = DATA.totalFac > 0 ? Math.round(DATA.functionalCount/DATA.totalFac*1000)/10 : 0;
+    const slo1Color = pctFunctional >= 70 ? 'var(--green)' : pctFunctional >= 40 ? 'var(--amber)' : 'var(--red-mid)';
+    const slo2Color = GOV_ROWS.length > 0 ? 'var(--amber)' : 'var(--gray-mid)';
+    overallEl.innerHTML = `
+      <div style="text-align:center;padding:12px 0;"><div style="font-size:22px;font-weight:700;color:${slo1Color};">⬤</div><div style="font-size:12px;font-weight:600;margin-top:4px;">SLO 1</div><div style="font-size:11px;color:#888;">${pctFunctional}% functional</div></div>
+      <div style="text-align:center;padding:12px 0;"><div style="font-size:22px;font-weight:700;color:${slo2Color};">⬤</div><div style="font-size:12px;font-weight:600;margin-top:4px;">SLO 2</div><div style="font-size:11px;color:#888;">${GOV_ROWS.length>0?GOV_ROWS.length+' entries logged':'No data yet'}</div></div>
+      <div style="text-align:center;padding:12px 0;"><div style="font-size:22px;font-weight:700;color:var(--gray-mid);">⬤</div><div style="font-size:12px;font-weight:600;margin-top:4px;">SLO 3</div><div style="font-size:11px;color:#888;">Partial tracking</div></div>
+      <div style="text-align:center;padding:12px 0;"><div style="font-size:22px;font-weight:700;color:var(--gray-mid);">⬤</div><div style="font-size:12px;font-weight:600;margin-top:4px;">SLO 4</div><div style="font-size:11px;color:#888;">Partial tracking</div></div>`;
+  }
+  if (insightEl) {
+    insightEl.innerHTML = `This scorecard pulls SLO 1 indicators directly from the Master sheet and SLO 2 from the Governance Log sheet. SLO 3 and SLO 4 indicators not yet captured in a sheet tab are marked "Not tracked" rather than estimated.`;
+  }
+}
+
+// ─── PAGE NAVIGATION ────────────────────────────────────────
+function show(idx) {
+  document.querySelectorAll('.page').forEach((p,i) => p.classList.toggle('active', i===idx));
+  document.querySelectorAll('.nav-tab').forEach((t,i) => t.classList.toggle('active', i===idx));
+  if (idx===1) updateDistrictPage();
+  if (idx===2) updateFacDistrict();
+}
+
+// ─── INIT ───────────────────────────────────────────────────
+fetchSheetData();
+setInterval(fetchSheetData, 5 * 60 * 1000);
+</script>
+</body>
+</html>
