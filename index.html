@@ -7,6 +7,7 @@
 <style>
 :root {
   --navy: #0C447C; --navy-lt: #E6F1FB; --navy-mid: #185FA5;
+  --header-orange: #C2540C; --header-orange-dark: #9A4209;
   --green: #3B6D11; --green-lt: #EAF3DE; --green-mid: #639922;
   --amber: #854F0B; --amber-lt: #FAEEDA; --amber-mid: #BA7517;
   --red: #791F1F; --red-lt: #FCEBEB; --red-mid: #A32D2D;
@@ -20,9 +21,9 @@
 body { font-family: -apple-system, 'Segoe UI', Arial, sans-serif; background: #F0EDE8; color: #2C2C2A; font-size: 13px; }
 
 /* NAV */
-.nav { background: var(--navy); display: flex; align-items: center; padding: 0 20px; height: 52px; gap: 0; position: sticky; top: 0; z-index: 100; }
+.nav { background: var(--header-orange); display: flex; align-items: center; padding: 0 20px; height: 52px; gap: 0; position: sticky; top: 0; z-index: 100; }
 .nav-brand { font-size: 15px; font-weight: 600; color: #fff; margin-right: 24px; letter-spacing: -0.3px; white-space: nowrap; }
-.nav-brand span { color: #5DCAA5; }
+.nav-brand span { color: #FFE8CC; }
 .nav-tabs { display: flex; gap: 2px; overflow-x: auto; flex: 1; }
 .nav-tab { padding: 6px 12px; border-radius: 6px; cursor: pointer; font-size: 12px; color: rgba(255,255,255,0.65); white-space: nowrap; border: none; background: none; transition: all 0.15s; }
 .nav-tab:hover { background: rgba(255,255,255,0.1); color: #fff; }
@@ -206,9 +207,6 @@ body { font-family: -apple-system, 'Segoe UI', Arial, sans-serif; background: #F
     <button class="nav-tab" onclick="show(1)">District deep-dive</button>
     <button class="nav-tab" onclick="show(2)">Facility fact sheet</button>
     <button class="nav-tab" onclick="show(3)">Progress over time</button>
-    <button class="nav-tab" onclick="show(4)">Field activity</button>
-    <button class="nav-tab" onclick="show(5)">Governance &amp; DTF</button>
-    <button class="nav-tab" onclick="show(6)">SLO scorecard</button>
   </div>
   <div class="nav-date" id="nav-date-chip">Loading…</div>
 </nav>
@@ -437,78 +435,6 @@ body { font-family: -apple-system, 'Segoe UI', Arial, sans-serif; background: #F
     </div>
   </div>
 </div>
-<!-- PAGE 5: FIELD ACTIVITY -->
-<div class="page" id="p4">
-  <div class="page-header">
-    <h1>Field activity log</h1>
-    <p>Daily DPM updates from the Governance Log sheet · entries tagged as field visits</p>
-  </div>
-  <div id="field-activity-content">
-    <div class="card">
-      <div style="text-align:center;padding:40px 20px;color:#999;">
-        <div style="font-size:28px;margin-bottom:10px;">📋</div>
-        <div style="font-size:13px;font-weight:500;color:#666;">Loading field activity data…</div>
-      </div>
-    </div>
-  </div>
-</div>
-
-<!-- PAGE 6: GOVERNANCE & DTF -->
-<div class="page" id="p5">
-  <div class="page-header">
-    <h1>Governance &amp; DTF log</h1>
-    <p>District Task Force activation · government meetings · decisions and commitments — from Governance Log sheet</p>
-  </div>
-  <div id="governance-content">
-    <div class="card">
-      <div style="text-align:center;padding:40px 20px;color:#999;">
-        <div style="font-size:28px;margin-bottom:10px;">📋</div>
-        <div style="font-size:13px;font-weight:500;color:#666;">Loading governance data…</div>
-      </div>
-    </div>
-  </div>
-</div>
-<!-- PAGE 7: SLO SCORECARD -->
-<div class="page" id="p6">
-  <div class="page-header">
-    <h1>SLO scorecard</h1>
-    <p id="slo-subtitle">Piramal's four Strategic Level Outcomes · indicator status</p>
-  </div>
-
-  <div class="g2 mb12">
-    <div class="slo-card" style="background:var(--navy-lt);border-color:#B5D4F4;">
-      <div class="slo-num" style="color:var(--navy)">SLO 1</div>
-      <div class="slo-title" style="color:var(--navy)">Functional AFHCs</div>
-      <div id="slo1-content"></div>
-    </div>
-
-    <div class="slo-card" style="background:#EAF3DE;border-color:#C0DD97;">
-      <div class="slo-num" style="color:var(--green)">SLO 2</div>
-      <div class="slo-title" style="color:var(--green)">Cross-sectoral governance &amp; coordination</div>
-      <div id="slo2-content">
-        <div style="font-size:12px;color:#999;padding:10px 0;">No governance log data available yet. This section will populate once entries are added to the Governance Log sheet.</div>
-      </div>
-    </div>
-
-    <div class="slo-card" style="background:var(--purple-lt);border-color:#AFA9EC;">
-      <div class="slo-num" style="color:var(--purple)">SLO 3</div>
-      <div class="slo-title" style="color:var(--purple)">Skilled workforce</div>
-      <div id="slo3-content"></div>
-    </div>
-
-    <div class="slo-card" style="background:var(--teal-lt);border-color:#9FE1CB;">
-      <div class="slo-num" style="color:var(--teal)">SLO 4</div>
-      <div class="slo-title" style="color:var(--teal)">Strengthened data systems</div>
-      <div id="slo4-content"></div>
-    </div>
-  </div>
-
-  <div class="card">
-    <div class="card-title">Overall programme status</div>
-    <div id="slo-overall-status" style="display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-top:4px;"></div>
-    <div class="insight" id="slo-insight" style="margin-top:12px;"></div>
-  </div>
-</div>
 
 <script>
 // ═══════════════════════════════════════════════════════════════
@@ -532,7 +458,6 @@ const CAT_COLS = {
 const BINARY_CATS = new Set(['Commodities','Monitoring','Knowledge']);
 
 let DATA = null;
-let GOV_ROWS = [];
 let loadErrors = [];
 
 // ─── FETCH ──────────────────────────────────────────────────
@@ -590,7 +515,7 @@ async function fetchSheetData() {
   showError(false);
   loadErrors = [];
 
-  // Master sheet is required — everything else is optional and fails soft
+  // Master sheet is required
   let masterParsed = null;
   try {
     masterParsed = await fetchSheetTab('Master');
@@ -599,15 +524,6 @@ async function fetchSheetData() {
     showLoading(false);
     showError(true, e.message || String(e));
     return;
-  }
-
-  // Governance Log — optional, fails soft to empty
-  try {
-    const govParsed = await fetchSheetTab('Governance Log');
-    GOV_ROWS = govParsed.rows.filter(r => Object.values(r).some(v => v !== ''));
-  } catch (e) {
-    console.warn('Governance Log fetch failed (non-fatal):', e.message);
-    GOV_ROWS = [];
   }
 
   try {
@@ -792,9 +708,6 @@ function renderAll() {
   renderCatBars();
   renderHeatmap();
   renderProgressPage();
-  renderFieldActivityPage();
-  renderGovernancePage();
-  renderSloPage();
   updateDistrictPage();
   updateFacDistrict();
 }
@@ -1199,199 +1112,6 @@ function renderProgressPage() {
   }
 }
 
-// ─── PAGE 5: FIELD ACTIVITY (from Governance Log, type-filtered) ─
-function renderFieldActivityPage() {
-  const el = document.getElementById('field-activity-content');
-  if (!el) return;
-
-  const fieldRows = GOV_ROWS.filter(r => {
-    const type = (r['Meeting Type'] || '').toString().toLowerCase();
-    return type.includes('field') || type.includes('visit');
-  });
-
-  if (GOV_ROWS.length === 0) {
-    el.innerHTML = `<div class="card"><div style="text-align:center;padding:40px 20px;color:#999;">
-      <div style="font-size:28px;margin-bottom:10px;">📋</div>
-      <div style="font-size:13px;font-weight:500;color:#666;">No field activity data in the Governance Log sheet yet</div>
-      <div style="font-size:11px;color:#aaa;margin-top:6px;">This page will populate automatically once entries are added to the Governance Log tab (use "Field visit" in the Meeting Type column).</div>
-    </div></div>`;
-    return;
-  }
-
-  if (fieldRows.length === 0) {
-    el.innerHTML = `<div class="card"><div style="text-align:center;padding:40px 20px;color:#999;">
-      <div style="font-size:28px;margin-bottom:10px;">📋</div>
-      <div style="font-size:13px;font-weight:500;color:#666;">No entries tagged as field visits</div>
-      <div style="font-size:11px;color:#aaa;margin-top:6px;">${GOV_ROWS.length} governance entries found, but none with Meeting Type containing "Field" or "Visit".</div>
-    </div></div>`;
-    return;
-  }
-
-  let html = '<div class="card"><div class="card-title">Field activity entries</div>';
-  for (const r of fieldRows) {
-    html += `<div class="gov-row">
-      <div class="gov-title">${esc(r['Attendees'] || 'Unknown')} · ${esc(r['District'] || '')}</div>
-      <div class="gov-meta">${esc(r['Date'] || '')} · ${esc(r['Meeting Type'] || '')}</div>
-      <div class="gov-decision">${esc(r['Key Decision / Commitment'] || r['Notes'] || 'No details recorded')}</div>
-      ${r['Status'] ? `<div style="margin-top:6px;"><span class="status-pill" style="background:var(--gray-lt);color:#555;">${esc(r['Status'])}</span></div>` : ''}
-    </div>`;
-  }
-  html += '</div>';
-  el.innerHTML = html;
-}
-
-// ─── PAGE 6: GOVERNANCE & DTF (from Governance Log sheet) ─────
-function renderGovernancePage() {
-  const el = document.getElementById('governance-content');
-  if (!el) return;
-
-  if (GOV_ROWS.length === 0) {
-    el.innerHTML = `<div class="card"><div style="text-align:center;padding:40px 20px;color:#999;">
-      <div style="font-size:28px;margin-bottom:10px;">📋</div>
-      <div style="font-size:13px;font-weight:500;color:#666;">No governance data available yet</div>
-      <div style="font-size:11px;color:#aaa;margin-top:6px;">Add rows to the Governance Log sheet (Date, District, Meeting Type, Attendees, Key Decision / Commitment, Owner, Due Date, Status, Notes) and this page will populate automatically.</div>
-    </div></div>`;
-    return;
-  }
-
-  const districtsWithMeetings = [...new Set(GOV_ROWS.map(r => r['District']).filter(Boolean))];
-  const completed = GOV_ROWS.filter(r => (r['Status']||'').toLowerCase().includes('complet') || (r['Status']||'').toLowerCase()==='done').length;
-  const pending = GOV_ROWS.length - completed;
-
-  let html = `<div class="hero-grid mb16">
-    <div class="hero"><div class="hero-label">Governance entries</div><div class="hero-val">${GOV_ROWS.length}</div><div class="hero-sub">Total logged</div></div>
-    <div class="hero"><div class="hero-label">Districts with entries</div><div class="hero-val" style="color:var(--amber)">${districtsWithMeetings.length}</div><div class="hero-sub">Out of ${DATA ? DATA.districts.length : '—'} active districts</div></div>
-    <div class="hero"><div class="hero-label">Completed</div><div class="hero-val" style="color:var(--green)">${completed}</div><div class="hero-sub">Commitments closed</div></div>
-    <div class="hero"><div class="hero-label">Pending / open</div><div class="hero-val" style="color:var(--amber)">${pending}</div><div class="hero-sub">Awaiting action</div></div>
-  </div>`;
-
-  html += '<div class="g2 mb12"><div class="card"><div class="card-title">Recent governance events</div>';
-  const sorted = [...GOV_ROWS].reverse(); // most recent first if sheet is appended chronologically
-  for (const r of sorted) {
-    const statusLower = (r['Status']||'').toLowerCase();
-    const pillColor = statusLower.includes('complet') || statusLower==='done' ? 'background:var(--green-lt);color:var(--green);'
-      : statusLower.includes('delay') ? 'background:var(--red-lt);color:var(--red);'
-      : 'background:var(--amber-lt);color:var(--amber);';
-    html += `<div class="gov-row">
-      <div class="gov-title">${esc(r['Meeting Type'] || 'Meeting')} · ${esc(r['District'] || '')}</div>
-      <div class="gov-meta">${esc(r['Date'] || '')} · ${esc(r['Attendees'] || '')}</div>
-      <div class="gov-decision">${esc(r['Key Decision / Commitment'] || 'No decision recorded')}</div>
-      ${r['Status'] ? `<div style="margin-top:6px;"><span class="status-pill" style="${pillColor}">${esc(r['Status'])}</span></div>` : ''}
-    </div>`;
-  }
-  html += '</div>';
-
-  html += '<div><div class="card mb12"><div class="card-title">Commitments tracker</div><table class="data-table"><tr><th>Decision</th><th>Owner</th><th>Due</th><th>Status</th></tr>';
-  for (const r of sorted) {
-    if (!r['Owner'] && !r['Due Date']) continue;
-    const statusLower = (r['Status']||'').toLowerCase();
-    const pillColor = statusLower.includes('complet') || statusLower==='done' ? 'background:var(--green-lt);color:var(--green);'
-      : statusLower.includes('delay') ? 'background:var(--red-lt);color:var(--red);'
-      : 'background:var(--amber-lt);color:var(--amber);';
-    html += `<tr>
-      <td>${esc((r['Key Decision / Commitment']||'').toString().substring(0,60))}${(r['Key Decision / Commitment']||'').length>60?'…':''}</td>
-      <td style="font-size:11px;">${esc(r['Owner'] || '—')}</td>
-      <td style="font-size:11px;">${esc(r['Due Date'] || '—')}</td>
-      <td><span class="status-pill" style="${pillColor}">${esc(r['Status'] || 'Open')}</span></td>
-    </tr>`;
-  }
-  html += '</table></div></div></div>';
-
-  el.innerHTML = html;
-}
-
-// ─── PAGE 7: SLO SCORECARD ───────────────────────────────────
-function renderSloPage() {
-  if (!DATA) return;
-  const sub = document.getElementById('slo-subtitle');
-  if (sub) sub.textContent = `Piramal's four Strategic Level Outcomes · ${DATA.firstDate ? 'baseline ' + DATA.firstDate : 'live data'}`;
-
-  // SLO 1 — live from Master sheet
-  const slo1 = document.getElementById('slo1-content');
-  if (slo1) {
-    if (DATA.totalFac === 0) {
-      slo1.innerHTML = '<div style="font-size:12px;color:#999;padding:10px 0;">No facility data available.</div>';
-    } else {
-      const pctFunctional = Math.round(DATA.functionalCount/DATA.totalFac*1000)/10;
-      const monitoring = DATA.catOverall['Monitoring'] || 0;
-      const commodities = DATA.catOverall['Commodities'] || 0;
-      const hrAvg = DATA.facilities.length > 0
-        ? Math.round(DATA.facilities.reduce((a,f)=>a + (f.staffName ? (((f.trainedStatus||'').toLowerCase()==='yes')?100:50) : 0),0) / DATA.facilities.length * 10)/10
-        : 0;
-      const pill = (v, invert) => {
-        const good = invert ? v < 40 : v >= 70;
-        const ok = invert ? v < 60 : v >= 50;
-        const bg = good ? '#EAF3DE' : ok ? '#FAEEDA' : '#F09595';
-        const fg = good ? 'var(--green)' : ok ? 'var(--amber)' : 'var(--red)';
-        return `background:${bg};color:${fg};`;
-      };
-      slo1.innerHTML = `
-        <div class="slo-indicator"><span>1.1 % functional facilities (≥80%)</span><span class="slo-pill" style="${pill(pctFunctional)}">${pctFunctional}%</span></div>
-        <div class="slo-indicator"><span>1.2 Average readiness score</span><span class="slo-pill" style="${pill(DATA.avgReadiness)}">${DATA.avgReadiness}%</span></div>
-        <div class="slo-indicator"><span>1.3 Commodities compliance</span><span class="slo-pill" style="${pill(commodities)}">${commodities}%</span></div>
-        <div class="slo-indicator"><span>1.4 HR trained &amp; present (proxy)</span><span class="slo-pill" style="${pill(hrAvg)}">${hrAvg}%</span></div>
-        <div class="slo-indicator"><span>1.5 Monitoring compliance</span><span class="slo-pill" style="${pill(monitoring)}">${monitoring}%</span></div>
-        <div style="margin-top:10px;font-size:11px;color:var(--navy-mid);line-height:1.5;">Live from Master sheet · ${DATA.totalFac} facilities assessed.</div>`;
-    }
-  }
-
-  // SLO 2 — from Governance Log
-  const slo2 = document.getElementById('slo2-content');
-  if (slo2) {
-    if (GOV_ROWS.length === 0) {
-      slo2.innerHTML = '<div style="font-size:12px;color:#999;padding:10px 0;">No governance log data available yet. This section will populate once entries are added to the Governance Log sheet.</div>';
-    } else {
-      const districtsWithMeetings = [...new Set(GOV_ROWS.map(r => r['District']).filter(Boolean))];
-      const completed = GOV_ROWS.filter(r => (r['Status']||'').toLowerCase().includes('complet')).length;
-      slo2.innerHTML = `
-        <div class="slo-indicator"><span>2.1 Districts with governance activity</span><span class="slo-pill" style="background:#FAEEDA;color:var(--amber);">${districtsWithMeetings.length} / ${DATA.districts.length}</span></div>
-        <div class="slo-indicator"><span>2.4 Commitments with written record</span><span class="slo-pill" style="background:#EAF3DE;color:var(--green);">${GOV_ROWS.length} tracked</span></div>
-        <div class="slo-indicator"><span>Completed commitments</span><span class="slo-pill" style="background:#EAF3DE;color:var(--green);">${completed}</span></div>
-        <div style="margin-top:10px;font-size:11px;color:var(--green);line-height:1.5;">Live from Governance Log sheet.</div>`;
-    }
-  }
-
-  // SLO 3 — Knowledge from Master (real), rest not tracked
-  const slo3 = document.getElementById('slo3-content');
-  if (slo3) {
-    const knowledge = DATA.catOverall['Knowledge'] || 0;
-    const hrGapCount = DATA.hrGaps.length;
-    slo3.innerHTML = `
-      <div class="slo-indicator"><span>3.2 Knowledge assessment (avg)</span><span class="slo-pill" style="background:${knowledge>=70?'#EAF3DE':'#FAEEDA'};color:${knowledge>=70?'var(--green)':'var(--amber)'};">${knowledge}%</span></div>
-      <div class="slo-indicator"><span>3.3 HR attendance gap</span><span class="slo-pill" style="background:#F09595;color:var(--red);">${hrGapCount} / ${DATA.totalFac} facilities</span></div>
-      <div class="slo-indicator"><span>3.4 / 3.5 Training tracker</span><span class="slo-pill" style="background:var(--gray-lt);color:var(--gray-mid);">Not tracked in sheet</span></div>
-      <div style="margin-top:10px;font-size:11px;color:var(--purple);line-height:1.5;">3.2 and 3.3 live from Master sheet. Training event tracking requires a separate sheet tab.</div>`;
-  }
-
-  // SLO 4 — Records from Master (real), rest not tracked
-  const slo4 = document.getElementById('slo4-content');
-  if (slo4) {
-    const records = DATA.catOverall['Records'] || 0;
-    slo4.innerHTML = `
-      <div class="slo-indicator"><span>4.1 / 4.3 Records compliance</span><span class="slo-pill" style="background:${records>=70?'#EAF3DE':'#FAEEDA'};color:${records>=70?'var(--green)':'var(--amber)'};">${records}%</span></div>
-      <div class="slo-indicator"><span>4.4 Dashboard live</span><span class="slo-pill" style="background:#EAF3DE;color:var(--green);">Live · this page</span></div>
-      <div class="slo-indicator"><span>4.2 / 4.5 Referral &amp; HMIS integration</span><span class="slo-pill" style="background:var(--gray-lt);color:var(--gray-mid);">Not tracked in sheet</span></div>
-      <div style="margin-top:10px;font-size:11px;color:var(--teal);line-height:1.5;">Records compliance live from Master sheet item 6.x. Referral-specific tracking (item 6.8) can be isolated on request.</div>`;
-  }
-
-  // Overall status
-  const overallEl = document.getElementById('slo-overall-status');
-  const insightEl = document.getElementById('slo-insight');
-  if (overallEl) {
-    const pctFunctional = DATA.totalFac > 0 ? Math.round(DATA.functionalCount/DATA.totalFac*1000)/10 : 0;
-    const slo1Color = pctFunctional >= 70 ? 'var(--green)' : pctFunctional >= 40 ? 'var(--amber)' : 'var(--red-mid)';
-    const slo2Color = GOV_ROWS.length > 0 ? 'var(--amber)' : 'var(--gray-mid)';
-    overallEl.innerHTML = `
-      <div style="text-align:center;padding:12px 0;"><div style="font-size:22px;font-weight:700;color:${slo1Color};">⬤</div><div style="font-size:12px;font-weight:600;margin-top:4px;">SLO 1</div><div style="font-size:11px;color:#888;">${pctFunctional}% functional</div></div>
-      <div style="text-align:center;padding:12px 0;"><div style="font-size:22px;font-weight:700;color:${slo2Color};">⬤</div><div style="font-size:12px;font-weight:600;margin-top:4px;">SLO 2</div><div style="font-size:11px;color:#888;">${GOV_ROWS.length>0?GOV_ROWS.length+' entries logged':'No data yet'}</div></div>
-      <div style="text-align:center;padding:12px 0;"><div style="font-size:22px;font-weight:700;color:var(--gray-mid);">⬤</div><div style="font-size:12px;font-weight:600;margin-top:4px;">SLO 3</div><div style="font-size:11px;color:#888;">Partial tracking</div></div>
-      <div style="text-align:center;padding:12px 0;"><div style="font-size:22px;font-weight:700;color:var(--gray-mid);">⬤</div><div style="font-size:12px;font-weight:600;margin-top:4px;">SLO 4</div><div style="font-size:11px;color:#888;">Partial tracking</div></div>`;
-  }
-  if (insightEl) {
-    insightEl.innerHTML = `This scorecard pulls SLO 1 indicators directly from the Master sheet and SLO 2 from the Governance Log sheet. SLO 3 and SLO 4 indicators not yet captured in a sheet tab are marked "Not tracked" rather than estimated.`;
-  }
-}
-
 // ─── PAGE NAVIGATION ────────────────────────────────────────
 function show(idx) {
   document.querySelectorAll('.page').forEach((p,i) => p.classList.toggle('active', i===idx));
@@ -1403,7 +1123,7 @@ function show(idx) {
 // ─── PASSWORD GATE ────────────────────────────────────────────
 // NOTE: This is a casual-access deterrent only, not real security.
 // The password below is visible to anyone who views this page's source.
-const DASHBOARD_PASSWORD = "sashakt2026";
+const DASHBOARD_PASSWORD = "sashakt202529";
 
 function checkPassword() {
   const input = document.getElementById('pw-input');
