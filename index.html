@@ -402,9 +402,15 @@ body { font-family: -apple-system, 'Segoe UI', Arial, sans-serif; background: #F
     <div id="fac-observation" style="font-size:13px;color:#555;line-height:1.6;"></div>
   </div>
 
-  <div class="card">
+  <div class="card mb12">
     <div class="card-title">Priority gaps · this facility</div>
     <div id="fac-gaps"></div>
+  </div>
+
+  <div class="card">
+    <div class="card-title">Full checklist · item-level responses</div>
+    <p style="font-size:11px;color:#888;margin-bottom:10px;">Every individual question from the supportive supervision checklist for this visit, plus the HR roster entry. Scroll for all items.</p>
+    <div id="fac-items" style="max-height:420px;overflow-y:auto;"></div>
   </div>
 </div>
 
@@ -456,6 +462,11 @@ const CAT_COLS = {
   Knowledge:      ['8.1','8.2','8.3','8.4','8.5'],
 };
 const BINARY_CATS = new Set(['Commodities','Monitoring','Knowledge']);
+// HR has no numbered checklist items (it's a staff roster, not a 1/2/3 scored section),
+// so it is scored separately via hrScore() below. DISPLAY_CATS is the list used everywhere
+// a category needs to be *shown* (bars, heatmap, breakdowns) — it adds HR alongside the
+// 8 item-scored categories so it's visually comparable, even though its underlying math differs.
+const DISPLAY_CATS = [...Object.keys(CAT_COLS), 'HR'];
 
 let DATA = null;
 let loadErrors = [];
@@ -566,6 +577,42 @@ function computeData({ cols, rows }) {
     return trained === 'yes' || trained === 'yea' ? 1 : 0.5;
   }
 
+  // Raw item-level responses for a row, grouped by category — retained so the
+  // Facility fact sheet can show the actual 1/2/3 answer behind each checklist
+  // question, not just the rolled-up category %.
+  function itemDetailsForRow(row) {
+    const items = [];
+    for (const cat of Object.keys(CAT_COLS)) {
+      const prefixes = CAT_COLS[cat];
+      const matchingCols = cols.filter(c => prefixes.some(p => c.startsWith(p + ' ') || c === p));
+      const binary = BINARY_CATS.has(cat);
+      for (const col of matchingCols) {
+        const raw = row[col];
+        const v = parseFloat(raw);
+        let statusText, statusColor;
+        if (isNaN(v)) {
+          statusText = 'No response'; statusColor = '#999';
+        } else if (binary) {
+          statusText = v === 1 ? 'Yes / Available' : 'No / Not available';
+          statusColor = v === 1 ? 'var(--green)' : 'var(--red)';
+        } else {
+          statusText = v === 1 ? 'Available & appropriate' : v === 2 ? 'Available but partial/inappropriate' : 'Not available';
+          statusColor = v === 1 ? 'var(--green)' : v === 2 ? 'var(--amber)' : 'var(--red)';
+        }
+        items.push({ category: cat, label: col, value: isNaN(v) ? '' : v, statusText, statusColor });
+      }
+    }
+    // HR roster fields, tagged as their own group so the item table shows all 9
+    // categories' worth of underlying detail, not just the 8 scored ones.
+    items.push({ category: 'HR Roster', label: 'Name of Staffs at AFHC', value: row['Name of Staffs at AFHC'] || '—', statusText: '', statusColor: '#666' });
+    items.push({ category: 'HR Roster', label: 'Designation', value: row['Designation'] || '—', statusText: '', statusColor: '#666' });
+    items.push({ category: 'HR Roster', label: 'Training Status (AFHS)', value: row['Training Status (AFHS)'] || '—', statusText: '', statusColor: '#666' });
+    items.push({ category: 'HR Roster', label: 'No. of days expected in AFHC', value: row['No. of days expected in AFHC'] || '—', statusText: '', statusColor: '#666' });
+    items.push({ category: 'HR Roster', label: 'No. of days performed in AFHC', value: row['No. of days performed in AFHC'] || '—', statusText: '', statusColor: '#666' });
+    items.push({ category: 'HR Roster', label: 'Trained AFHC (Yes/No)', value: row['Trained AFHC (Yes/No)'] || '—', statusText: '', statusColor: '#666' });
+    return items;
+  }
+
   function overallScore(row) {
     const cats = Object.keys(CAT_COLS);
     const scores = cats.map(c => scoreRow(row, c)).filter(s => s !== null);
@@ -591,6 +638,8 @@ function computeData({ cols, rows }) {
         const s = scoreRow(row, cat);
         catScores[cat] = s !== null ? Math.round(s * 1000) / 10 : 0;
       }
+      const hrS = hrScore(row);
+      catScores['HR'] = Math.round(hrS * 1000) / 10;
       const overall = overallScore(row);
       facilityMap[key] = {
         d: row['District'],
@@ -611,6 +660,7 @@ function computeData({ cols, rows }) {
         hrGap: parseFloat(row['HR Attendance Gap']) || 0,
         primaryBarrier: row['Primary Barrier Category'] || '',
         keyObs: row['Key Observation'] || '',
+        items: itemDetailsForRow(row),
         ...catScores
       };
     }
@@ -630,7 +680,7 @@ function computeData({ cols, rows }) {
     };
   }
 
-  const catKeys = Object.keys(CAT_COLS);
+  const catKeys = DISPLAY_CATS;
   const catOverall = {};
   for (const cat of catKeys) {
     const vals = facilities.map(f => f[cat]).filter(v => !isNaN(v));
@@ -980,7 +1030,7 @@ function updateFacilityPage() {
   const heroEl = document.getElementById('fac-hero');
   if (!dist || !facName) {
     if (heroEl) heroEl.innerHTML = '<div style="color:#999;font-size:12px;padding:12px;grid-column:1/-1;">No facility data available.</div>';
-    ['fac-cat-bars','fac-hr','fac-observation','fac-gaps'].forEach(id => {
+    ['fac-cat-bars','fac-hr','fac-observation','fac-gaps','fac-items'].forEach(id => {
       const e = document.getElementById(id); if (e) e.innerHTML = '';
     });
     return;
@@ -989,7 +1039,7 @@ function updateFacilityPage() {
   const fac = DATA.facilities.find(f => f.d === dist && f.n === facName);
   if (!fac) return;
 
-  const cats = Object.keys(CAT_COLS);
+  const cats = DISPLAY_CATS;
   const band2 = fac.band === 'Functional' ? '≥80% · Functional' : fac.band === 'Moderate' ? '60–79% · Moderate' : '<60% · Non-functional';
 
   heroEl.innerHTML = `
@@ -1043,6 +1093,25 @@ function updateFacilityPage() {
   }
   gapHtml += '</div>';
   document.getElementById('fac-gaps').innerHTML = gapHtml;
+
+  const itemsEl = document.getElementById('fac-items');
+  if (itemsEl) {
+    if (!fac.items || fac.items.length === 0) {
+      itemsEl.innerHTML = '<div style="color:#999;font-size:12px;padding:12px 0;">No item-level data available for this visit.</div>';
+    } else {
+      let iHtml = '<table class="data-table"><thead><tr><th>Category</th><th>Checklist item</th><th>Response</th><th>Status</th></tr></thead><tbody>';
+      for (const it of fac.items) {
+        iHtml += `<tr>
+          <td style="font-size:11px;color:#888;white-space:nowrap;">${esc(it.category)}</td>
+          <td>${esc(it.label)}</td>
+          <td style="text-align:center;font-weight:600;">${esc(it.value)}</td>
+          <td>${it.statusText ? `<span style="color:${it.statusColor};font-weight:600;">${esc(it.statusText)}</span>` : ''}</td>
+        </tr>`;
+      }
+      iHtml += '</tbody></table>';
+      itemsEl.innerHTML = iHtml;
+    }
+  }
 }
 
 function getCatAction(cat, v) {
