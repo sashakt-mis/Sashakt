@@ -971,12 +971,12 @@ function updateDistrictPage() {
     if (hrFacs.length === 0) {
       hrEl.innerHTML = '<div style="font-size:12px;color:#3B6D11;padding:12px 0;">No significant HR attendance gaps in this district.</div>';
     } else {
-      let hHtml = '<table class="data-table"><thead><tr><th>Facility</th><th>Counsellor</th><th>Expected days</th><th>Days present</th><th>Gap</th></tr></thead><tbody>';
+      let hHtml = '<table class="data-table"><thead><tr><th>Facility</th><th>Role</th><th>Expected days</th><th>Days present</th><th>Gap</th></tr></thead><tbody>';
       for (const f of hrFacs) {
         const gapPct = f.expDays > 0 ? Math.round(f.hrGap/f.expDays*100) : 0;
         hHtml += `<tr>
           <td>${esc(f.n)}</td>
-          <td style="font-size:11px;color:#666;">${esc(f.staffName) || '—'}</td>
+          <td style="font-size:11px;color:#666;">${esc(f.staffDesig) || '—'}</td>
           <td style="text-align:center;">${f.expDays}</td>
           <td style="text-align:center;color:var(--red-mid);font-weight:600;">${f.perfDays}</td>
           <td style="text-align:center;"><span style="background:var(--red-lt);color:var(--red);padding:2px 7px;border-radius:3px;font-weight:600;font-size:11px;">−${f.hrGap}d (${gapPct}%)</span></td>
@@ -1058,16 +1058,16 @@ function updateFacilityPage() {
   if (fac.hrGap > 0) {
     const pct = fac.expDays > 0 ? Math.round(fac.perfDays/fac.expDays*100) : 0;
     hrEl.innerHTML = `<div style="font-size:12px;line-height:1.8;">
-      <div style="margin-bottom:8px;"><span style="color:#888;">Counsellor:</span> <strong>${esc(fac.staffName) || '—'} (${esc(fac.staffDesig) || '—'})</strong></div>
+      <div style="margin-bottom:8px;"><span style="color:#888;">Role:</span> <strong>${esc(fac.staffDesig) || '—'}</strong></div>
       <div style="margin-bottom:8px;"><span style="color:#888;">Trained (AFHS):</span> <strong>${esc(fac.trainedStatus) || '—'}</strong></div>
       <div style="margin-bottom:8px;"><span style="color:#888;">Expected days:</span> <strong>${fac.expDays}</strong></div>
       <div style="margin-bottom:8px;"><span style="color:#888;">Days present:</span> <strong style="color:#A32D2D;">${fac.perfDays}</strong></div>
       <div><span style="color:#888;">Attendance gap:</span> <strong style="color:#A32D2D;">−${fac.hrGap} days (${100-pct}% absent)</strong></div>
-      <div class="insight" style="margin-top:10px;">Counsellor is posted${(fac.trainedStatus||'').toLowerCase()==='yes'?' and trained':''} but attending only ${pct}% of mandated days. Likely diversion — raise at DRCHO level.</div>
+      <div class="insight" style="margin-top:10px;">Counsellor post is filled${(fac.trainedStatus||'').toLowerCase()==='yes'?' and trained':''} but attending only ${pct}% of mandated days. Likely diversion — raise at DRCHO level.</div>
     </div>`;
-  } else if (fac.staffName) {
+  } else if (fac.staffDesig) {
     hrEl.innerHTML = `<div style="font-size:12px;line-height:1.8;">
-      <div style="margin-bottom:8px;"><span style="color:#888;">Counsellor:</span> <strong>${esc(fac.staffName)} (${esc(fac.staffDesig) || '—'})</strong></div>
+      <div style="margin-bottom:8px;"><span style="color:#888;">Role:</span> <strong>${esc(fac.staffDesig) || '—'}</strong></div>
       <div style="margin-bottom:8px;"><span style="color:#888;">Trained (AFHS):</span> <strong>${esc(fac.trainedStatus) || '—'}</strong></div>
       <div style="color:var(--green);font-weight:500;margin-top:8px;">✓ No significant HR attendance gap recorded.</div>
     </div>`;
