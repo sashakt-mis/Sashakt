@@ -90,6 +90,10 @@ body { font-family: -apple-system, 'Segoe UI', Arial, sans-serif; background: #F
 .tag-func { background: var(--green-lt); color: var(--green); }
 .tag-mod { background: var(--amber-lt); color: var(--amber); }
 .tag-nf { background: var(--red-lt); color: var(--red); }
+.tag-hr-ontrack { background: var(--green-lt); color: var(--green); }
+.tag-hr-minor { background: var(--amber-lt); color: var(--amber-mid); }
+.tag-hr-moderate { background: var(--amber-lt); color: var(--amber); }
+.tag-hr-significant { background: var(--red-lt); color: var(--red); }
 .tag-slo { background: var(--navy-lt); color: var(--navy); }
 .tag-soon { background: var(--teal-lt); color: var(--teal); }
 
@@ -627,6 +631,23 @@ function computeData({ cols, rows }) {
     return 'NonFunctional';
   }
 
+  // High-level HR attendance band — replaces showing exact day-counts/percentages
+  // or staff names anywhere on the dashboard. Based on % of expected days missed.
+  function attendanceBand(expDays, gap) {
+    if (!expDays || expDays <= 0) return null;
+    const gapPct = (gap / expDays) * 100;
+    if (gapPct <= 0) return 'OnTrack';
+    if (gapPct <= 20) return 'Minor';
+    if (gapPct <= 50) return 'Moderate';
+    return 'Significant';
+  }
+  const HR_BAND_LABEL = { OnTrack: 'On track', Minor: 'Minor gap', Moderate: 'Moderate gap', Significant: 'Significant gap' };
+  function hrBandTag(band) {
+    if (!band) return '<span style="color:#999;font-size:11px;">No data</span>';
+    const cls = band === 'OnTrack' ? 'tag-hr-ontrack' : band === 'Minor' ? 'tag-hr-minor' : band === 'Moderate' ? 'tag-hr-moderate' : 'tag-hr-significant';
+    return `<span class="tag ${cls}">${HR_BAND_LABEL[band]}</span>`;
+  }
+
   const facilityMap = {};
   for (const row of rows) {
     if (!row['District'] || !row['Facility Name']) continue;
@@ -658,6 +679,7 @@ function computeData({ cols, rows }) {
         expDays: parseFloat(row['No. of days expected in AFHC']) || 0,
         perfDays: parseFloat(row['No. of days performed in AFHC']) || 0,
         hrGap: parseFloat(row['HR Attendance Gap']) || 0,
+        hrBand: attendanceBand(parseFloat(row['No. of days expected in AFHC']) || 0, parseFloat(row['HR Attendance Gap']) || 0),
         primaryBarrier: row['Primary Barrier Category'] || '',
         keyObs: row['Key Observation'] || '',
         items: itemDetailsForRow(row),
@@ -670,6 +692,7 @@ function computeData({ cols, rows }) {
   const districts = [...new Set(facilities.map(f => f.d))].filter(Boolean).sort();
 
   const bandCounts = {};
+  const hrBandCounts = {};
   for (const d of districts) {
     const dFacs = facilities.filter(f => f.d === d);
     bandCounts[d] = {
@@ -677,6 +700,13 @@ function computeData({ cols, rows }) {
       Moderate: dFacs.filter(f => f.band === 'Moderate').length,
       NonFunctional: dFacs.filter(f => f.band === 'NonFunctional').length,
       total: dFacs.length
+    };
+    hrBandCounts[d] = {
+      OnTrack: dFacs.filter(f => f.hrBand === 'OnTrack').length,
+      Minor: dFacs.filter(f => f.hrBand === 'Minor').length,
+      Moderate: dFacs.filter(f => f.hrBand === 'Moderate').length,
+      Significant: dFacs.filter(f => f.hrBand === 'Significant').length,
+      total: dFacs.filter(f => f.hrBand).length
     };
   }
 
@@ -716,7 +746,7 @@ function computeData({ cols, rows }) {
   const followupRowsCount = rows.filter(r => r['Visit Type'] && r['Visit Type'] !== 'Baseline').length;
 
   return {
-    facilities, districts, bandCounts, catOverall, distCat, hrGaps,
+    facilities, districts, bandCounts, hrBandCounts, catOverall, distCat, hrGaps,
     totalFac, functionalCount, avgReadiness, lastDate, firstDate,
     baselineCount: baselineFacs.length,
     followupCount: followupRowsCount,
@@ -967,22 +997,37 @@ function updateDistrictPage() {
   }
 
   if (hrEl) {
-    const hrFacs = dFacs.filter(f => f.hrGap > 0).sort((a,b) => b.hrGap - a.hrGap);
-    if (hrFacs.length === 0) {
-      hrEl.innerHTML = '<div style="font-size:12px;color:#3B6D11;padding:12px 0;">No significant HR attendance gaps in this district.</div>';
+    const hbc = DATA.hrBandCounts[dist] || { OnTrack:0, Minor:0, Moderate:0, Significant:0, total:0 };
+    const bandedFacs = dFacs.filter(f => f.hrBand)
+      .sort((a,b) => {
+        const order = { Significant:0, Moderate:1, Minor:2, OnTrack:3 };
+        return order[a.hrBand] - order[b.hrBand];
+      });
+    if (bandedFacs.length === 0) {
+      hrEl.innerHTML = '<div style="font-size:12px;color:#999;padding:12px 0;">No HR attendance data recorded in this district.</div>';
     } else {
-      let hHtml = '<table class="data-table"><thead><tr><th>Facility</th><th>Role</th><th>Expected days</th><th>Days present</th><th>Gap</th></tr></thead><tbody>';
-      for (const f of hrFacs) {
-        const gapPct = f.expDays > 0 ? Math.round(f.hrGap/f.expDays*100) : 0;
-        hHtml += `<tr>
-          <td>${esc(f.n)}</td>
-          <td style="font-size:11px;color:#666;">${esc(f.staffDesig) || '—'}</td>
-          <td style="text-align:center;">${f.expDays}</td>
-          <td style="text-align:center;color:var(--red-mid);font-weight:600;">${f.perfDays}</td>
-          <td style="text-align:center;"><span style="background:var(--red-lt);color:var(--red);padding:2px 7px;border-radius:3px;font-weight:600;font-size:11px;">−${f.hrGap}d (${gapPct}%)</span></td>
-        </tr>`;
+      let hHtml = `<div style="display:flex;gap:8px;margin-bottom:14px;">
+        <div style="flex:1;background:var(--gray-lt);border-radius:6px;padding:10px 12px;">
+          <div style="font-size:11px;color:#888;">On track</div><div style="font-size:20px;font-weight:600;">${hbc.OnTrack}</div>
+        </div>
+        <div style="flex:1;background:var(--gray-lt);border-radius:6px;padding:10px 12px;">
+          <div style="font-size:11px;color:#888;">Minor gap</div><div style="font-size:20px;font-weight:600;">${hbc.Minor}</div>
+        </div>
+        <div style="flex:1;background:var(--gray-lt);border-radius:6px;padding:10px 12px;">
+          <div style="font-size:11px;color:#888;">Moderate gap</div><div style="font-size:20px;font-weight:600;">${hbc.Moderate}</div>
+        </div>
+        <div style="flex:1;background:var(--gray-lt);border-radius:6px;padding:10px 12px;">
+          <div style="font-size:11px;color:#888;">Significant gap</div><div style="font-size:20px;font-weight:600;">${hbc.Significant}</div>
+        </div>
+      </div>`;
+      hHtml += '<table class="data-table"><thead><tr><th>Facility</th><th style="text-align:right;">Attendance band</th></tr></thead><tbody>';
+      for (const f of bandedFacs) {
+        hHtml += `<tr><td>${esc(f.n)}</td><td style="text-align:right;">${hrBandTag(f.hrBand)}</td></tr>`;
       }
       hHtml += '</tbody></table>';
+      if (hbc.Significant > 0) {
+        hHtml += `<div class="insight" style="margin-top:10px;">${hbc.Significant} of ${hbc.total} facilities show a significant attendance gap this cycle.</div>`;
+      }
       hrEl.innerHTML = hHtml;
     }
   }
@@ -990,12 +1035,13 @@ function updateDistrictPage() {
   if (insEl) {
     const worstCat = Object.entries(dc).sort((a,b)=>a[1]-b[1])[0];
     const bestCat = Object.entries(dc).sort((a,b)=>b[1]-a[1])[0];
-    const hrGapFacs = dFacs.filter(f => f.hrGap > 0).length;
+    const hbc = DATA.hrBandCounts[dist] || { Moderate:0, Significant:0, total:0 };
+    const hrConcern = hbc.Significant + hbc.Moderate;
     insEl.innerHTML = `<strong>${esc(dist)}</strong> has ${bc.Functional} functional, ${bc.Moderate} moderate, and ${bc.NonFunctional} non-functional facilities.
     Average readiness is ${avgR}%.
     ${worstCat ? `Weakest category: <strong>${esc(worstCat[0])} at ${worstCat[1]}%</strong>` : ''} ·
     ${bestCat ? `Strongest: <strong>${esc(bestCat[0])} at ${bestCat[1]}%</strong>` : ''}.
-    ${hrGapFacs > 0 ? `<strong>${hrGapFacs} facilities</strong> have HR attendance gaps — counsellors present but not completing mandated days.` : 'No significant HR attendance gaps detected.'}`;
+    ${hrConcern > 0 ? `<strong>${hrConcern} facilities</strong> show a moderate or significant HR attendance gap.` : 'No significant HR attendance gaps detected.'}`;
   }
 }
 
@@ -1055,21 +1101,18 @@ function updateFacilityPage() {
   document.getElementById('fac-cat-bars').innerHTML = cbHtml;
 
   const hrEl = document.getElementById('fac-hr');
-  if (fac.hrGap > 0) {
-    const pct = fac.expDays > 0 ? Math.round(fac.perfDays/fac.expDays*100) : 0;
+  const HR_BAND_MSG = {
+    OnTrack: 'Counsellor attendance is on track this cycle.',
+    Minor: 'Attendance is slightly below expected days. Worth a check-in at the next visit.',
+    Moderate: 'Attendance is below expected days. Recommend monitoring at the next supervisory visit.',
+    Significant: 'Counsellor post is filled but attendance is well below mandated days. Recommend reviewing deployment at DRCHO level.'
+  };
+  if (fac.staffDesig) {
     hrEl.innerHTML = `<div style="font-size:12px;line-height:1.8;">
       <div style="margin-bottom:8px;"><span style="color:#888;">Role:</span> <strong>${esc(fac.staffDesig) || '—'}</strong></div>
       <div style="margin-bottom:8px;"><span style="color:#888;">Trained (AFHS):</span> <strong>${esc(fac.trainedStatus) || '—'}</strong></div>
-      <div style="margin-bottom:8px;"><span style="color:#888;">Expected days:</span> <strong>${fac.expDays}</strong></div>
-      <div style="margin-bottom:8px;"><span style="color:#888;">Days present:</span> <strong style="color:#A32D2D;">${fac.perfDays}</strong></div>
-      <div><span style="color:#888;">Attendance gap:</span> <strong style="color:#A32D2D;">−${fac.hrGap} days (${100-pct}% absent)</strong></div>
-      <div class="insight" style="margin-top:10px;">Counsellor post is filled${(fac.trainedStatus||'').toLowerCase()==='yes'?' and trained':''} but attending only ${pct}% of mandated days. Likely diversion — raise at DRCHO level.</div>
-    </div>`;
-  } else if (fac.staffDesig) {
-    hrEl.innerHTML = `<div style="font-size:12px;line-height:1.8;">
-      <div style="margin-bottom:8px;"><span style="color:#888;">Role:</span> <strong>${esc(fac.staffDesig) || '—'}</strong></div>
-      <div style="margin-bottom:8px;"><span style="color:#888;">Trained (AFHS):</span> <strong>${esc(fac.trainedStatus) || '—'}</strong></div>
-      <div style="color:var(--green);font-weight:500;margin-top:8px;">✓ No significant HR attendance gap recorded.</div>
+      <div style="margin-bottom:8px;"><span style="color:#888;">Attendance:</span> ${hrBandTag(fac.hrBand)}</div>
+      ${fac.hrBand ? `<div class="insight" style="margin-top:10px;">${HR_BAND_MSG[fac.hrBand]}</div>` : ''}
     </div>`;
   } else {
     hrEl.innerHTML = '<div style="font-size:12px;color:var(--red-mid);padding:10px 0;font-weight:500;">No HR data recorded for this facility.</div>';
