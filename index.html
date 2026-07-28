@@ -962,15 +962,15 @@ function updateDistrictPage() {
   const bc = DATA.bandCounts[dist] || {Functional:0,Moderate:0,NonFunctional:0,total:0};
   const avgR = dFacs.length > 0 ? Math.round(dFacs.reduce((a,b)=>a+b.s,0)/dFacs.length*10)/10 : 0;
 
-  if (heroEl) {
+  if (heroEl) { try {
     heroEl.innerHTML = `
       <div class="hero"><div class="hero-label">Facilities</div><div class="hero-val">${bc.total}</div><div class="hero-sub">${esc(dist)}</div></div>
       <div class="hero"><div class="hero-label">Functional</div><div class="hero-val" style="color:${bc.Functional>0?'var(--green)':'var(--red-mid)'};">${bc.Functional}</div><div class="hero-sub">of ${bc.total}</div></div>
       <div class="hero"><div class="hero-label">Average readiness</div><div class="hero-val" style="color:${bandTextColor(avgR)}">${avgR}%</div><div class="hero-sub">District average</div></div>
       <div class="hero"><div class="hero-label">Non-functional</div><div class="hero-val" style="color:var(--red-mid)">${bc.NonFunctional}</div><div class="hero-sub">Require intervention</div></div>`;
-  }
+  } catch(e) { console.error('dist-heroes render error:', e); heroEl.innerHTML = '<div style="color:var(--red-mid);font-size:12px;padding:8px;">Render error — see console.</div>'; } }
 
-  if (facEl) {
+  if (facEl) { try {
     let fHtml = '<table class="data-table"><thead><tr><th>Facility</th><th>Type</th><th>Score</th><th>Status</th></tr></thead><tbody>';
     for (const f of dFacs) {
       fHtml += `<tr>
@@ -982,9 +982,9 @@ function updateDistrictPage() {
     }
     fHtml += '</tbody></table>';
     facEl.innerHTML = fHtml;
-  }
+  } catch(e) { console.error('dist-fac-table render error:', e); facEl.innerHTML = '<div style="color:var(--red-mid);font-size:12px;padding:8px;">Render error — see console.</div>'; } }
 
-  if (catEl) {
+  if (catEl) { try {
     const cats = Object.entries(dc).sort((a,b)=>a[1]-b[1]);
     let cHtml = '';
     for (const [cat, val] of cats) {
@@ -995,9 +995,9 @@ function updateDistrictPage() {
       </div>`;
     }
     catEl.innerHTML = cHtml;
-  }
+  } catch(e) { console.error('dist-cat-bars render error:', e); catEl.innerHTML = '<div style="color:var(--red-mid);font-size:12px;padding:8px;">Render error — see console.</div>'; } }
 
-  if (hrEl) {
+  if (hrEl) { try {
     const hbc = DATA.hrBandCounts[dist] || { OnTrack:0, Minor:0, Moderate:0, Significant:0, total:0 };
     const bandedFacs = dFacs.filter(f => f.hrBand)
       .sort((a,b) => {
@@ -1031,9 +1031,9 @@ function updateDistrictPage() {
       }
       hrEl.innerHTML = hHtml;
     }
-  }
+  } catch(e) { console.error('dist-hr-table render error:', e); hrEl.innerHTML = `<div style="color:var(--red-mid);font-size:12px;padding:8px;">Render error: ${esc(e.message)} — see console.</div>`; } }
 
-  if (insEl) {
+  if (insEl) { try {
     const worstCat = Object.entries(dc).sort((a,b)=>a[1]-b[1])[0];
     const bestCat = Object.entries(dc).sort((a,b)=>b[1]-a[1])[0];
     const hbc = DATA.hrBandCounts[dist] || { Moderate:0, Significant:0, total:0 };
@@ -1043,7 +1043,7 @@ function updateDistrictPage() {
     ${worstCat ? `Weakest category: <strong>${esc(worstCat[0])} at ${worstCat[1]}%</strong>` : ''} ·
     ${bestCat ? `Strongest: <strong>${esc(bestCat[0])} at ${bestCat[1]}%</strong>` : ''}.
     ${hrConcern > 0 ? `<strong>${hrConcern} facilities</strong> show a moderate or significant HR attendance gap.` : 'No significant HR attendance gaps detected.'}`;
-  }
+  } catch(e) { console.error('dist-insight render error:', e); insEl.innerHTML = `<div style="color:var(--red-mid);font-size:12px;padding:8px;">Render error: ${esc(e.message)} — see console.</div>`; } }
 }
 
 // ─── PAGE 3: FACILITY FACT SHEET ────────────────────────────
@@ -1095,51 +1095,59 @@ function updateFacilityPage() {
     <div class="hero"><div class="hero-label">Worst category</div><div class="hero-val" style="font-size:16px;color:#A32D2D">${esc(cats.sort((a,b)=>fac[a]-fac[b])[0])}</div><div class="hero-sub">${fac[cats.sort((a,b)=>fac[a]-fac[b])[0]]}%</div></div>`;
 
   let cbHtml = '';
-  for (const cat of [...cats].sort((a,b) => fac[a]-fac[b])) {
-    const v = fac[cat];
-    cbHtml += `<div class="bar-row"><div class="bar-label">${esc(cat)}</div><div class="bar-track"><div class="bar-fill" style="width:${v}%;background:${catColor(v)}"></div><div class="bench"></div></div><div class="bar-pct" style="color:${catTextColor(v)}">${v}%</div></div>`;
-  }
-  document.getElementById('fac-cat-bars').innerHTML = cbHtml;
+  try {
+    for (const cat of [...cats].sort((a,b) => fac[a]-fac[b])) {
+      const v = fac[cat];
+      cbHtml += `<div class="bar-row"><div class="bar-label">${esc(cat)}</div><div class="bar-track"><div class="bar-fill" style="width:${v}%;background:${catColor(v)}"></div><div class="bench"></div></div><div class="bar-pct" style="color:${catTextColor(v)}">${v}%</div></div>`;
+    }
+    document.getElementById('fac-cat-bars').innerHTML = cbHtml;
+  } catch(e) { console.error('fac-cat-bars render error:', e); document.getElementById('fac-cat-bars').innerHTML = `<div style="color:var(--red-mid);font-size:12px;padding:8px;">Render error: ${esc(e.message)} — see console.</div>`; }
 
   const hrEl = document.getElementById('fac-hr');
-  const HR_BAND_MSG = {
-    OnTrack: 'Counsellor attendance is on track this cycle.',
-    Minor: 'Attendance is slightly below expected days. Worth a check-in at the next visit.',
-    Moderate: 'Attendance is below expected days. Recommend monitoring at the next supervisory visit.',
-    Significant: 'Counsellor post is filled but attendance is well below mandated days. Recommend reviewing deployment at DRCHO level.'
-  };
-  if (fac.staffDesig) {
-    hrEl.innerHTML = `<div style="font-size:12px;line-height:1.8;">
-      <div style="margin-bottom:8px;"><span style="color:#888;">Role:</span> <strong>${esc(fac.staffDesig) || '—'}</strong></div>
-      <div style="margin-bottom:8px;"><span style="color:#888;">Trained (AFHS):</span> <strong>${esc(fac.trainedStatus) || '—'}</strong></div>
-      <div style="margin-bottom:8px;"><span style="color:#888;">Attendance:</span> ${hrBandTag(fac.hrBand)}</div>
-      ${fac.hrBand ? `<div class="insight" style="margin-top:10px;">${HR_BAND_MSG[fac.hrBand]}</div>` : ''}
-    </div>`;
-  } else {
-    hrEl.innerHTML = '<div style="font-size:12px;color:var(--red-mid);padding:10px 0;font-weight:500;">No HR data recorded for this facility.</div>';
-  }
+  try {
+    const HR_BAND_MSG = {
+      OnTrack: 'Counsellor attendance is on track this cycle.',
+      Minor: 'Attendance is slightly below expected days. Worth a check-in at the next visit.',
+      Moderate: 'Attendance is below expected days. Recommend monitoring at the next supervisory visit.',
+      Significant: 'Counsellor post is filled but attendance is well below mandated days. Recommend reviewing deployment at DRCHO level.'
+    };
+    if (fac.staffDesig) {
+      hrEl.innerHTML = `<div style="font-size:12px;line-height:1.8;">
+        <div style="margin-bottom:8px;"><span style="color:#888;">Role:</span> <strong>${esc(fac.staffDesig) || '—'}</strong></div>
+        <div style="margin-bottom:8px;"><span style="color:#888;">Trained (AFHS):</span> <strong>${esc(fac.trainedStatus) || '—'}</strong></div>
+        <div style="margin-bottom:8px;"><span style="color:#888;">Attendance:</span> ${hrBandTag(fac.hrBand)}</div>
+        ${fac.hrBand ? `<div class="insight" style="margin-top:10px;">${HR_BAND_MSG[fac.hrBand]}</div>` : ''}
+      </div>`;
+    } else {
+      hrEl.innerHTML = '<div style="font-size:12px;color:var(--red-mid);padding:10px 0;font-weight:500;">No HR data recorded for this facility.</div>';
+    }
+  } catch(e) { console.error('fac-hr render error:', e); hrEl.innerHTML = `<div style="color:var(--red-mid);font-size:12px;padding:8px;">Render error: ${esc(e.message)} — see console.</div>`; }
 
-  const obs = fac.s>=80 ? 'Facility meets RKSK functional criteria. Maintain current standards and focus on sustaining monitoring documentation and records.'
-    : fac.s>=60 ? 'Facility has moderate readiness. Core infrastructure and HR are in place. Targeted improvements in lowest-scoring categories will push this facility to functional status.'
-    : fac.s>=30 ? 'Facility has significant readiness gaps requiring structured support. Multiple category failures suggest systemic issues beyond single-item fixes.'
-    : 'Facility has critical readiness gaps. Basic infrastructure or HR may be absent. Requires district-level administrative intervention before programmatic support can be effective.';
-  document.getElementById('fac-observation').textContent = fac.keyObs || obs;
+  try {
+    const obs = fac.s>=80 ? 'Facility meets RKSK functional criteria. Maintain current standards and focus on sustaining monitoring documentation and records.'
+      : fac.s>=60 ? 'Facility has moderate readiness. Core infrastructure and HR are in place. Targeted improvements in lowest-scoring categories will push this facility to functional status.'
+      : fac.s>=30 ? 'Facility has significant readiness gaps requiring structured support. Multiple category failures suggest systemic issues beyond single-item fixes.'
+      : 'Facility has critical readiness gaps. Basic infrastructure or HR may be absent. Requires district-level administrative intervention before programmatic support can be effective.';
+    document.getElementById('fac-observation').textContent = fac.keyObs || obs;
+  } catch(e) { console.error('fac-observation render error:', e); }
 
-  const sortedCats = [...cats].sort((a,b) => fac[a]-fac[b]);
-  let gapHtml = '<div style="display:flex;flex-direction:column;gap:8px;">';
-  for (let i = 0; i < Math.min(3, sortedCats.length); i++) {
-    const cat = sortedCats[i];
-    const v = fac[cat];
-    gapHtml += `<div style="display:flex;align-items:center;gap:10px;padding:8px 10px;background:#FFF8F8;border-radius:6px;border-left:3px solid #F09595;">
-      <div style="font-size:12px;font-weight:600;color:#791F1F;min-width:18px;">${i+1}</div>
-      <div style="flex:1;"><div style="font-size:12px;font-weight:600;color:#333;">${esc(cat)} — ${v}%</div>
-      <div style="font-size:11px;color:#888;margin-top:2px;">${esc(getCatAction(cat,v))}</div></div></div>`;
-  }
-  gapHtml += '</div>';
-  document.getElementById('fac-gaps').innerHTML = gapHtml;
+  try {
+    const sortedCats = [...cats].sort((a,b) => fac[a]-fac[b]);
+    let gapHtml = '<div style="display:flex;flex-direction:column;gap:8px;">';
+    for (let i = 0; i < Math.min(3, sortedCats.length); i++) {
+      const cat = sortedCats[i];
+      const v = fac[cat];
+      gapHtml += `<div style="display:flex;align-items:center;gap:10px;padding:8px 10px;background:#FFF8F8;border-radius:6px;border-left:3px solid #F09595;">
+        <div style="font-size:12px;font-weight:600;color:#791F1F;min-width:18px;">${i+1}</div>
+        <div style="flex:1;"><div style="font-size:12px;font-weight:600;color:#333;">${esc(cat)} — ${v}%</div>
+        <div style="font-size:11px;color:#888;margin-top:2px;">${esc(getCatAction(cat,v))}</div></div></div>`;
+    }
+    gapHtml += '</div>';
+    document.getElementById('fac-gaps').innerHTML = gapHtml;
+  } catch(e) { console.error('fac-gaps render error:', e); document.getElementById('fac-gaps').innerHTML = `<div style="color:var(--red-mid);font-size:12px;padding:8px;">Render error: ${esc(e.message)} — see console.</div>`; }
 
   const itemsEl = document.getElementById('fac-items');
-  if (itemsEl) {
+  if (itemsEl) { try {
     if (!fac.items || fac.items.length === 0) {
       itemsEl.innerHTML = '<div style="color:#999;font-size:12px;padding:12px 0;">No item-level data available for this visit.</div>';
     } else {
@@ -1155,7 +1163,7 @@ function updateFacilityPage() {
       iHtml += '</tbody></table>';
       itemsEl.innerHTML = iHtml;
     }
-  }
+  } catch(e) { console.error('fac-items render error:', e); itemsEl.innerHTML = `<div style="color:var(--red-mid);font-size:12px;padding:8px;">Render error: ${esc(e.message)} — see console.</div>`; } }
 }
 
 function getCatAction(cat, v) {
