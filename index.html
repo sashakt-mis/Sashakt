@@ -631,23 +631,6 @@ function computeData({ cols, rows }) {
     return 'NonFunctional';
   }
 
-  // High-level HR attendance band — replaces showing exact day-counts/percentages
-  // or staff names anywhere on the dashboard. Based on % of expected days missed.
-  function attendanceBand(expDays, gap) {
-    if (!expDays || expDays <= 0) return null;
-    const gapPct = (gap / expDays) * 100;
-    if (gapPct <= 0) return 'OnTrack';
-    if (gapPct <= 20) return 'Minor';
-    if (gapPct <= 50) return 'Moderate';
-    return 'Significant';
-  }
-  const HR_BAND_LABEL = { OnTrack: 'On track', Minor: 'Minor gap', Moderate: 'Moderate gap', Significant: 'Significant gap' };
-  function hrBandTag(band) {
-    if (!band) return '<span style="color:#999;font-size:11px;">No data</span>';
-    const cls = band === 'OnTrack' ? 'tag-hr-ontrack' : band === 'Minor' ? 'tag-hr-minor' : band === 'Moderate' ? 'tag-hr-moderate' : 'tag-hr-significant';
-    return `<span class="tag ${cls}">${HR_BAND_LABEL[band]}</span>`;
-  }
-
   const facilityMap = {};
   for (const row of rows) {
     if (!row['District'] || !row['Facility Name']) continue;
@@ -763,6 +746,24 @@ function bandTag(band) {
   if (band === 'Functional') return '<span class="tag tag-func">Functional</span>';
   if (band === 'Moderate') return '<span class="tag tag-mod">Moderate</span>';
   return '<span class="tag tag-nf">Non-functional</span>';
+}
+// High-level HR attendance band — replaces showing exact day-counts/percentages
+// or staff names anywhere on the dashboard. Based on % of expected days missed.
+// Global scope: used both inside computeData() (to build the band per facility)
+// and inside updateDistrictPage()/updateFacilityPage() (to render the tag).
+function attendanceBand(expDays, gap) {
+  if (!expDays || expDays <= 0) return null;
+  const gapPct = (gap / expDays) * 100;
+  if (gapPct <= 0) return 'OnTrack';
+  if (gapPct <= 20) return 'Minor';
+  if (gapPct <= 50) return 'Moderate';
+  return 'Significant';
+}
+const HR_BAND_LABEL = { OnTrack: 'On track', Minor: 'Minor gap', Moderate: 'Moderate gap', Significant: 'Significant gap' };
+function hrBandTag(band) {
+  if (!band) return '<span style="color:#999;font-size:11px;">No data</span>';
+  const cls = band === 'OnTrack' ? 'tag-hr-ontrack' : band === 'Minor' ? 'tag-hr-minor' : band === 'Moderate' ? 'tag-hr-moderate' : 'tag-hr-significant';
+  return `<span class="tag ${cls}">${HR_BAND_LABEL[band]}</span>`;
 }
 function esc(s) {
   if (s === null || s === undefined) return '';
