@@ -278,7 +278,13 @@ body { font-family: -apple-system, 'Segoe UI', Arial, sans-serif; background: #F
 
   <div class="g2 mb12">
     <div class="card">
-      <div class="card-title">District functional status</div>
+      <div class="card-title" style="display:flex;align-items:center;justify-content:space-between;">
+        <span>District functional status</span>
+        <select class="filter-select" id="state-select" onchange="renderDistStacks()" style="font-size:11px;padding:3px 8px;">
+          <option value="Jharkhand">Jharkhand</option>
+          <option value="Odisha">Odisha</option>
+        </select>
+      </div>
       <div style="margin-bottom:6px;font-size:10px;color:#999;">← Non-functional &nbsp;·&nbsp; Moderate &nbsp;·&nbsp; Functional →</div>
       <div id="dist-stacks"></div>
       <div style="display:flex;gap:12px;margin-top:10px;">
@@ -344,15 +350,16 @@ body { font-family: -apple-system, 'Segoe UI', Arial, sans-serif; background: #F
 
   <div class="hero-grid mb16" id="dist-heroes"></div>
 
-  <div class="g2 mb12">
-    <div class="card">
-      <div class="card-title">Facility scores · ranked</div>
-      <div id="dist-fac-table"></div>
+  <div class="card mb12">
+    <div class="card-title">Facility × category heatmap <span class="slo-tag">SLO 1</span></div>
+    <div style="overflow-x:auto;">
+      <table class="heatmap" id="dist-fac-heatmap"></table>
     </div>
-    <div class="card">
-      <div class="card-title">Category breakdown <span class="slo-tag">SLO 1</span></div>
-      <div id="dist-cat-bars"></div>
-    </div>
+  </div>
+
+  <div class="card mb12">
+    <div class="card-title">Category breakdown <span class="slo-tag">SLO 1</span></div>
+    <div id="dist-cat-bars"></div>
   </div>
 
   <div class="card mb12">
@@ -471,6 +478,15 @@ const BINARY_CATS = new Set(['Commodities','Monitoring','Knowledge']);
 // a category needs to be *shown* (bars, heatmap, breakdowns) — it adds HR alongside the
 // 8 item-scored categories so it's visually comparable, even though its underlying math differs.
 const DISPLAY_CATS = [...Object.keys(CAT_COLS), 'HR'];
+
+// Maps each district to its state, for the State overview page's Jharkhand/Odisha filter.
+// Districts not listed here default to Jharkhand (all current districts except Mayurbhanj are).
+const DISTRICT_STATE = {
+  'Mayurbhanj': 'Odisha',
+};
+function stateOf(district) {
+  return DISTRICT_STATE[district] || 'Jharkhand';
+}
 
 let DATA = null;
 let loadErrors = [];
@@ -858,12 +874,15 @@ function updateChips() {
 function renderDistStacks() {
   const el = document.getElementById('dist-stacks');
   if (!el || !DATA) return;
-  if (DATA.districts.length === 0) {
-    el.innerHTML = '<div style="color:#999;font-size:12px;padding:12px 0;">No district data available.</div>';
+  const stateSel = document.getElementById('state-select');
+  const selectedState = stateSel ? stateSel.value : 'Jharkhand';
+  const filteredDistricts = DATA.districts.filter(d => stateOf(d) === selectedState);
+  if (filteredDistricts.length === 0) {
+    el.innerHTML = `<div style="color:#999;font-size:12px;padding:12px 0;">No districts recorded for ${esc(selectedState)} yet.</div>`;
     return;
   }
   let html = '';
-  for (const d of DATA.districts) {
+  for (const d of filteredDistricts) {
     const b = DATA.bandCounts[d];
     if (!b) continue;
     const t = b.total;
@@ -943,7 +962,7 @@ function updateDistrictPage() {
   }
   const dist = sel ? sel.value : (DATA.districts[0] || '');
   const heroEl = document.getElementById('dist-heroes');
-  const facEl = document.getElementById('dist-fac-table');
+  const facEl = document.getElementById('dist-fac-heatmap');
   const catEl = document.getElementById('dist-cat-bars');
   const hrEl = document.getElementById('dist-hr-table');
   const insEl = document.getElementById('dist-insight');
@@ -971,18 +990,23 @@ function updateDistrictPage() {
   } catch(e) { console.error('dist-heroes render error:', e); heroEl.innerHTML = '<div style="color:var(--red-mid);font-size:12px;padding:8px;">Render error — see console.</div>'; } }
 
   if (facEl) { try {
-    let fHtml = '<table class="data-table"><thead><tr><th>Facility</th><th>Type</th><th>Score</th><th>Status</th></tr></thead><tbody>';
-    for (const f of dFacs) {
-      fHtml += `<tr>
-        <td>${esc(f.n)}</td>
-        <td style="color:#888;font-size:11px;">${esc(f.type || '')}</td>
-        <td><span class="fac-score" style="background:${bandColor(f.s)};color:${bandTextColor(f.s)};">${f.s}%</span></td>
-        <td>${bandTag(f.band)}</td>
-      </tr>`;
+    const cats = DISPLAY_CATS;
+    if (dFacs.length === 0) {
+      facEl.innerHTML = '<tr><td style="color:#999;padding:12px;">No facilities recorded in this district.</td></tr>';
+    } else {
+      let fHtml = `<thead><tr><th class="dist-head">Facility</th>${cats.map(c=>`<th style="font-size:9px;">${esc(c.substring(0,4))}</th>`).join('')}<th>Overall</th></tr></thead><tbody>`;
+      for (const f of dFacs) {
+        fHtml += `<tr><td>${esc(f.n)}</td>`;
+        for (const cat of cats) {
+          const v = f[cat] || 0;
+          fHtml += `<td style="background:${catColor(v)};color:${catTextColor(v)};">${v}%</td>`;
+        }
+        fHtml += `<td style="font-weight:700;color:${bandTextColor(f.s)};">${f.s}%</td></tr>`;
+      }
+      fHtml += '</tbody>';
+      facEl.innerHTML = fHtml;
     }
-    fHtml += '</tbody></table>';
-    facEl.innerHTML = fHtml;
-  } catch(e) { console.error('dist-fac-table render error:', e); facEl.innerHTML = '<div style="color:var(--red-mid);font-size:12px;padding:8px;">Render error — see console.</div>'; } }
+  } catch(e) { console.error('dist-fac-heatmap render error:', e); facEl.innerHTML = `<tr><td style="color:var(--red-mid);font-size:12px;padding:8px;">Render error: ${esc(e.message)} — see console.</td></tr>`; } }
 
   if (catEl) { try {
     const cats = Object.entries(dc).sort((a,b)=>a[1]-b[1]);
