@@ -280,7 +280,7 @@ body { font-family: -apple-system, 'Segoe UI', Arial, sans-serif; background: #F
     <div class="card">
       <div class="card-title" style="display:flex;align-items:center;justify-content:space-between;">
         <span>District functional status</span>
-        <select class="filter-select" id="state-select" onchange="renderDistStacks()" style="font-size:11px;padding:3px 8px;">
+        <select class="filter-select" id="state-select" onchange="refreshStateFiltered()" style="font-size:11px;padding:3px 8px;">
           <option value="Jharkhand">Jharkhand</option>
           <option value="Odisha">Odisha</option>
         </select>
@@ -871,6 +871,14 @@ function updateChips() {
 }
 
 // ─── PAGE 1: STATE OVERVIEW ─────────────────────────────────
+// Called whenever the Jharkhand/Odisha dropdown changes — keeps District functional
+// status, Category compliance, and the District × category heatmap all in sync.
+function refreshStateFiltered() {
+  renderDistStacks();
+  renderCatBars();
+  renderHeatmap();
+}
+
 function renderDistStacks() {
   const el = document.getElementById('dist-stacks');
   if (!el || !DATA) return;
@@ -906,7 +914,19 @@ function renderDistStacks() {
 function renderCatBars() {
   const el = document.getElementById('cat-bars');
   if (!el || !DATA) return;
-  const cats = Object.entries(DATA.catOverall).sort((a,b)=>a[1]-b[1]);
+  const stateSel = document.getElementById('state-select');
+  const selectedState = stateSel ? stateSel.value : 'Jharkhand';
+  const stateFacs = DATA.facilities.filter(f => stateOf(f.d) === selectedState);
+  const catOverallForState = {};
+  for (const cat of DISPLAY_CATS) {
+    const vals = stateFacs.map(f => f[cat]).filter(v => !isNaN(v));
+    catOverallForState[cat] = vals.length > 0 ? Math.round(vals.reduce((a,b)=>a+b,0)/vals.length * 10) / 10 : 0;
+  }
+  if (stateFacs.length === 0) {
+    el.innerHTML = `<div style="color:#999;font-size:12px;padding:12px 0;">No facilities recorded for ${esc(selectedState)} yet.</div>`;
+    return;
+  }
+  const cats = Object.entries(catOverallForState).sort((a,b)=>a[1]-b[1]);
   let html = '<div style="position:relative;">';
   for (const [cat, val] of cats) {
     html += `<div class="bar-row">
@@ -925,13 +945,16 @@ function renderCatBars() {
 function renderHeatmap() {
   const el = document.getElementById('heatmap-table');
   if (!el || !DATA) return;
-  const cats = Object.keys(DATA.catOverall);
-  if (DATA.districts.length === 0) {
-    el.innerHTML = '<tr><td style="color:#999;padding:12px;">No data available.</td></tr>';
+  const stateSel = document.getElementById('state-select');
+  const selectedState = stateSel ? stateSel.value : 'Jharkhand';
+  const cats = DISPLAY_CATS;
+  const filteredDistricts = DATA.districts.filter(d => stateOf(d) === selectedState);
+  if (filteredDistricts.length === 0) {
+    el.innerHTML = `<tr><td style="color:#999;padding:12px;">No districts recorded for ${esc(selectedState)} yet.</td></tr>`;
     return;
   }
   let html = `<thead><tr><th class="dist-head">District</th>${cats.map(c=>`<th style="font-size:9px;">${esc(c.substring(0,4))}</th>`).join('')}<th>Avg</th></tr></thead><tbody>`;
-  for (const d of DATA.districts) {
+  for (const d of filteredDistricts) {
     const shortName = d.replace('West Singhbhum','W. Singhbhum').replace('East Singhbhum','E. Singhbhum');
     const dc = DATA.distCat[d];
     if (!dc) continue;
