@@ -310,23 +310,7 @@ body { font-family: -apple-system, 'Segoe UI', Arial, sans-serif; background: #F
 
   <div class="card">
     <div class="card-title">Priority actions this month</div>
-    <div class="action-grid">
-      <div class="action-card">
-        <div class="action-num">Priority 1 · All districts</div>
-        <div class="action-head">Document supervisor feedback at each facility</div>
-        <div class="action-body">Monitoring at 33.7% — lowest category. Visits are happening, records are not kept. Simple register + MOIC signature after each visit.</div>
-      </div>
-      <div class="action-card">
-        <div class="action-num">Priority 2 · NHM State</div>
-        <div class="action-head">Escalate IEC supply gap to RKSK Cell</div>
-        <div class="action-body">IEC at 43.1%. Take-away materials and contraceptive displays absent. State has not supplied districts — Pakur CS confirmed in writing.</div>
-      </div>
-      <div class="action-card">
-        <div class="action-num">Priority 3 · Pakur — urgent</div>
-        <div class="action-head">DC-level direction needed for 3 non-functional facilities</div>
-        <div class="action-body">Littipara (0.6%), Pakuria (14%), UPHC Pakur (15%) — no physical space. Cannot be fixed through supply chain. Requires administrative decision.</div>
-      </div>
-    </div>
+    <div class="action-grid" id="priority-actions"></div>
   </div>
 </div>
 
@@ -804,6 +788,7 @@ function renderAll() {
   renderDistStacks();
   renderCatBars();
   renderHeatmap();
+  renderPriorityActions();
   renderProgressPage();
   updateDistrictPage();
   updateFacDistrict();
@@ -872,11 +857,81 @@ function updateChips() {
 
 // ─── PAGE 1: STATE OVERVIEW ─────────────────────────────────
 // Called whenever the Jharkhand/Odisha dropdown changes — keeps District functional
-// status, Category compliance, and the District × category heatmap all in sync.
+// status, Category compliance, the District × category heatmap, and Priority actions
+// all in sync with the selected state.
 function refreshStateFiltered() {
   renderDistStacks();
   renderCatBars();
   renderHeatmap();
+  renderPriorityActions();
+}
+
+function renderPriorityActions() {
+  const el = document.getElementById('priority-actions');
+  if (!el || !DATA) return;
+  const stateSel = document.getElementById('state-select');
+  const selectedState = stateSel ? stateSel.value : 'Jharkhand';
+  const stateFacs = DATA.facilities.filter(f => stateOf(f.d) === selectedState);
+  const stateDistricts = DATA.districts.filter(d => stateOf(d) === selectedState);
+
+  if (stateFacs.length === 0) {
+    el.innerHTML = `<div style="color:#999;font-size:12px;padding:12px 0;grid-column:1/-1;">No facility data recorded for ${esc(selectedState)} yet.</div>`;
+    return;
+  }
+
+  // Two weakest categories statewide (within selected state), reusing the same
+  // action guidance shown on the facility fact sheet's priority gaps card.
+  const catAvgs = {};
+  for (const cat of DISPLAY_CATS) {
+    const vals = stateFacs.map(f => f[cat]).filter(v => !isNaN(v));
+    catAvgs[cat] = vals.length > 0 ? Math.round(vals.reduce((a,b)=>a+b,0)/vals.length * 10) / 10 : 0;
+  }
+  const sortedCats = Object.entries(catAvgs).sort((a,b) => a[1]-b[1]);
+  const [cat1, val1] = sortedCats[0] || ['—', 0];
+  const [cat2, val2] = sortedCats[1] || ['—', 0];
+
+  // Worst-performing district in the selected state, and its non-functional facilities.
+  const distAvgs = stateDistricts.map(d => {
+    const dFacs = DATA.facilities.filter(f => f.d === d);
+    const avg = dFacs.length > 0 ? dFacs.reduce((a,b)=>a+b.s,0)/dFacs.length : 0;
+    return { d, avg, dFacs };
+  }).sort((a,b) => a.avg-b.avg);
+  const worstDist = distAvgs[0];
+
+  let html = `
+    <div class="action-card">
+      <div class="action-num">Priority 1 · ${esc(selectedState)} — all districts</div>
+      <div class="action-head">${esc(cat1)} is the weakest category statewide at ${val1}%</div>
+      <div class="action-body">${esc(getCatAction(cat1, val1))}</div>
+    </div>
+    <div class="action-card">
+      <div class="action-num">Priority 2 · ${esc(selectedState)} — all districts</div>
+      <div class="action-head">${esc(cat2)} is the second-weakest category at ${val2}%</div>
+      <div class="action-body">${esc(getCatAction(cat2, val2))}</div>
+    </div>`;
+
+  if (worstDist) {
+    const nfFacs = worstDist.dFacs.filter(f => f.band === 'NonFunctional').sort((a,b)=>a.s-b.s);
+    const shortDist = worstDist.d.replace('West Singhbhum','W. Singhbhum').replace('East Singhbhum','E. Singhbhum');
+    if (nfFacs.length > 0) {
+      const names = nfFacs.slice(0,3).map(f => `${f.n} (${f.s}%)`).join(', ');
+      html += `
+    <div class="action-card">
+      <div class="action-num">Priority 3 · ${esc(shortDist)} — urgent</div>
+      <div class="action-head">DC-level direction needed for ${nfFacs.length} non-functional facilit${nfFacs.length===1?'y':'ies'}</div>
+      <div class="action-body">${esc(names)}${nfFacs.length>3?', and '+(nfFacs.length-3)+' more':''} — lowest-readiness district in ${esc(selectedState)}. Requires administrative decision, likely beyond routine supply-chain fixes.</div>
+    </div>`;
+    } else {
+      html += `
+    <div class="action-card">
+      <div class="action-num">Priority 3 · ${esc(shortDist)}</div>
+      <div class="action-head">Lowest-readiness district in ${esc(selectedState)} at ${Math.round(worstDist.avg*10)/10}%</div>
+      <div class="action-body">No facilities are currently non-functional, but this district trails the rest of ${esc(selectedState)}. Worth a closer look at category-level performance in the district deep-dive.</div>
+    </div>`;
+    }
+  }
+
+  el.innerHTML = html;
 }
 
 function renderDistStacks() {
