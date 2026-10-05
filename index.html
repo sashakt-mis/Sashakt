@@ -1324,7 +1324,7 @@ function scoreChip(v) {
 }
 
 function changeText(delta) {
-  const txt = (delta > 0 ? '+' : '') + delta.toFixed(1) + ' pts';
+  const txt = (delta > 0 ? '+' : '') + delta.toFixed(1);   // unit (% points) is stated in the column header
   if (delta >= CHANGE_THRESHOLD) return `<span style="color:var(--green);font-weight:600;white-space:nowrap;">▲ ${txt}</span>`;
   if (delta <= -CHANGE_THRESHOLD) return `<span style="color:var(--red-mid);font-weight:600;white-space:nowrap;">▼ ${txt}</span>`;
   return `<span style="color:#888;font-weight:600;white-space:nowrap;">● ${txt}</span>`;
@@ -1352,8 +1352,14 @@ function renderProgressPage() {
   const regressed = pairs.filter(p => p.delta <= -CHANGE_THRESHOLD).length;
   const steady = pairs.length - improved - regressed;
   const avgDelta = pairs.length ? Math.round(pairs.reduce((a, p) => a + p.delta, 0) / pairs.length * 10) / 10 : null;
-  const funcBase = pairs.filter(p => p.base.band === 'Functional').length;
-  const funcNow = pairs.filter(p => p.last.band === 'Functional').length;
+  // Functional counts are programme-wide: every baselined facility, at baseline vs at its latest visit
+  const latestOf = j => j.visits[j.vns[j.vns.length - 1]];
+  const funcBase = J.filter(j => j.visits[1].band === 'Functional').length;
+  const funcNow = J.filter(j => latestOf(j).band === 'Functional').length;
+  const gained = pairs.filter(p => p.base.band !== 'Functional' && p.last.band === 'Functional').length;
+  const slipped = pairs.filter(p => p.base.band === 'Functional' && p.last.band !== 'Functional').length;
+  const avgBase = pairs.length ? Math.round(pairs.reduce((a, p) => a + p.base.s, 0) / pairs.length * 10) / 10 : null;
+  const avgLast = pairs.length ? Math.round(pairs.reduce((a, p) => a + p.last.s, 0) / pairs.length * 10) / 10 : null;
 
   const roundCounts = [];
   for (let vn = 2; vn <= maxVn; vn++) roundCounts.push({ vn, n: J.filter(j => j.visits[vn]).length });
@@ -1370,13 +1376,13 @@ function renderProgressPage() {
   const heroEl = document.getElementById('progress-heroes');
   if (heroEl) { try {
     const pct = J.length ? Math.round(withFU.length / J.length * 1000) / 10 : 0;
-    const rounds = roundCounts.filter(r => r.n > 0).map(r => `${roundLabel(r.vn)}: ${r.n}`).join(' · ');
+    const rounds = roundCounts.filter(r => r.n > 0).map(r => `${r.n} completed ${roundLabel(r.vn)}`).join(' · ');
     const deltaColor = avgDelta === null ? '#ccc' : avgDelta >= CHANGE_THRESHOLD ? 'var(--green)' : avgDelta <= -CHANGE_THRESHOLD ? 'var(--red-mid)' : '#888';
     heroEl.innerHTML = `
       <div class="hero"><div class="hero-label">Facilities with baseline</div><div class="hero-val">${J.length}</div><div class="hero-sub">${DATA.districts.length} districts</div></div>
       <div class="hero"><div class="hero-label">Facilities with follow-up</div><div class="hero-val" style="color:${withFU.length > 0 ? 'var(--green)' : '#ccc'}">${withFU.length} <span style="font-size:16px;font-weight:400;color:#999">/ ${J.length}</span></div><div class="hero-sub">${withFU.length > 0 ? `${pct}% of baselined · ${esc(rounds)}` : 'No follow-up visits yet'}</div></div>
-      <div class="hero"><div class="hero-label">Avg change since baseline</div><div class="hero-val" style="color:${deltaColor}">${avgDelta === null ? '—' : (avgDelta > 0 ? '+' : '') + avgDelta.toFixed(1) + ' pts'}</div><div class="hero-sub">${pairs.length ? `${improved} improved · ${regressed} regressed · ${steady} no material change` : 'Appears with first follow-up'}</div></div>
-      <div class="hero"><div class="hero-label">Functional (≥80%)</div><div class="hero-val" style="color:${funcNow > funcBase ? 'var(--green)' : funcNow < funcBase ? 'var(--red-mid)' : '#888'}">${pairs.length ? `${funcBase} → ${funcNow}` : '—'}</div><div class="hero-sub">${pairs.length ? `baseline → latest, among the ${pairs.length} followed-up` : 'Appears with first follow-up'}</div></div>`;
+      <div class="hero"><div class="hero-label">Avg readiness · followed-up facilities</div><div class="hero-val" style="color:${deltaColor}">${pairs.length ? `${avgBase}% → ${avgLast}%` : '—'}</div><div class="hero-sub">${pairs.length ? `${avgDelta > 0 ? '+' : ''}${avgDelta.toFixed(1)} percentage points · ${improved} improved · ${regressed} regressed · ${steady} no material change` : 'Appears with first follow-up'}</div></div>
+      <div class="hero"><div class="hero-label">Functional (≥80%) · all facilities</div><div class="hero-val" style="color:${funcNow > funcBase ? 'var(--green)' : funcNow < funcBase ? 'var(--red-mid)' : '#888'}">${funcBase} → ${funcNow}</div><div class="hero-sub">baseline → latest visit, of ${J.length}${pairs.length ? ` · ${gained} newly functional${slipped ? `, ${slipped} slipped back` : ''}` : ''}</div></div>`;
   } catch (e) { console.error('progress-heroes render error:', e); heroEl.innerHTML = `<div style="color:var(--red-mid);font-size:12px;padding:8px;">Render error: ${esc(e.message)} — see console.</div>`; } }
 
   const emptyMsg = '<div style="color:#999;font-size:12px;padding:12px 0;">No follow-up visits recorded yet. Once a row with Visit Number 2 or higher is added to the Master sheet, the change appears here.</div>';
@@ -1394,8 +1400,8 @@ function renderProgressPage() {
       let h = `<table class="data-table"><thead><tr>
         <th style="${th}">Facility</th><th style="${th}">District</th>
         ${colVns.map(vn => `<th style="${th}text-align:center;">${roundLabel(vn)}</th>`).join('')}
-        <th style="${th}">Change vs baseline</th>
-        ${showStep ? `<th style="${th}">Since previous visit</th>` : ''}
+        <th style="${th}">Change vs baseline <span style="font-weight:400;text-transform:none;">(% points)</span></th>
+        ${showStep ? `<th style="${th}">Since previous visit <span style="font-weight:400;text-transform:none;">(% points)</span></th>` : ''}
         <th style="${th}">Band movement</th></tr></thead><tbody>`;
       for (const p of pairs) {
         const bandCell = p.base.band !== p.last.band
@@ -1430,7 +1436,7 @@ function renderProgressPage() {
       let c = `<div style="display:flex;gap:14px;font-size:10px;color:#888;margin-bottom:8px;">
         <span><span style="display:inline-block;width:10px;height:7px;background:#C9C6BC;border-radius:2px;margin-right:4px;"></span>Baseline</span>
         <span><span style="display:inline-block;width:10px;height:7px;background:#97C459;border-radius:2px;margin-right:4px;"></span>Latest visit</span>
-        <span style="margin-left:auto;">Average of ${pairs.length} facilit${pairs.length === 1 ? 'y' : 'ies'} with follow-up</span></div>`;
+        <span style="margin-left:auto;">Change in % points · average of ${pairs.length} facilit${pairs.length === 1 ? 'y' : 'ies'} with follow-up</span></div>`;
       for (const r of catRows) {
         const dColor = r.d >= CHANGE_THRESHOLD ? 'var(--green)' : r.d <= -CHANGE_THRESHOLD ? 'var(--red-mid)' : '#888';
         const arrow = r.d >= CHANGE_THRESHOLD ? '▲' : r.d <= -CHANGE_THRESHOLD ? '▼' : '●';
