@@ -418,21 +418,21 @@ body { font-family: -apple-system, 'Segoe UI', Arial, sans-serif; background: #F
 
   <div class="hero-grid mb16" id="progress-heroes"></div>
 
-  <div class="g2 mb12">
-    <div class="card">
-      <div class="card-title">Readiness trend · all districts (latest visit per facility)</div>
-      <div id="progress-trend"></div>
-    </div>
-    <div class="card">
-      <div class="card-title">Functional facilities (≥80%)</div>
-      <div id="progress-functional" style="text-align:center;padding:16px 0 8px;"></div>
-    </div>
+  <div class="card mb12">
+    <div class="card-title">Facility journey · baseline to latest visit</div>
+    <p style="font-size:11px;color:#888;margin-bottom:10px;">Facilities that have had at least one follow-up visit. Rows added to the Master sheet for Follow-up 2, 3 and beyond appear here automatically as extra columns.</p>
+    <div id="progress-journey" style="max-height:460px;overflow:auto;"></div>
+  </div>
+
+  <div class="card mb12">
+    <div class="card-title">Which categories moved <span class="slo-tag">SLO 1</span></div>
+    <div id="progress-cats"></div>
   </div>
 
   <div class="card">
-    <div class="card-title">How to read this page over time</div>
+    <div class="card-title">How to read this page</div>
     <div style="font-size:12px;color:#666;line-height:1.7;">
-      Every follow-up visit adds a new row to the Master sheet. This page automatically compares latest visit data per facility against earlier visits as new rows are added. Use the "Visit Type" column in the sheet to distinguish Baseline from Follow-up visits.
+      Every visit is one row in the Master sheet. <strong>Visit Number 1 = Baseline, 2 = Follow-up 1, 3 = Follow-up 2</strong>, and so on. This page compares each facility's latest visit with its baseline, so a new follow-up row updates it automatically. Changes smaller than 1 percentage point are shown as "no material change". Category movement is averaged only over facilities that have a follow-up, so baseline and latest cover the same facilities.
     </div>
   </div>
 </div>
@@ -725,14 +725,41 @@ function computeData({ cols, rows }) {
   const lastDate = dates.length > 0 ? dates[dates.length-1] : '';
   const firstDate = dates.length > 0 ? dates[0] : '';
 
-  const baselineFacs = facilities.filter(f => f.visitType === 'Baseline');
-  const followupRowsCount = rows.filter(r => r['Visit Type'] && r['Visit Type'] !== 'Baseline').length;
+  // ── Visit history per facility, for the Progress over time page ──
+  // Every row in the sheet is one visit. Visit Number 1 = Baseline, 2 = Follow-up 1,
+  // 3 = Follow-up 2, ... (same rule as the sheet README). If a visit number appears
+  // twice for one facility, the later row in the sheet wins.
+  const visitHistory = {};
+  for (const row of rows) {
+    if (!row['District'] || !row['Facility Name']) continue;
+    const key = `${row['District']}||${row['Facility Name']}`;
+    const vn = parseInt(row['Visit Number']) || 1;
+    const cats = {};
+    for (const cat of Object.keys(CAT_COLS)) {
+      const sc = scoreRow(row, cat);
+      cats[cat] = sc !== null ? Math.round(sc * 1000) / 10 : 0;
+    }
+    cats['HR'] = Math.round(hrScore(row) * 1000) / 10;
+    const overall = overallScore(row);
+    if (!visitHistory[key]) visitHistory[key] = {};
+    visitHistory[key][vn] = { vn, s: Math.round(overall * 1000) / 10, band: readinessBand(overall), cats };
+  }
+  const journeys = [];
+  for (const key of Object.keys(visitHistory)) {
+    const byVn = visitHistory[key];
+    if (!byVn[1]) continue;   // no baseline row -> nothing to measure progress against
+    const [d, n] = key.split('||');
+    journeys.push({ d, n, visits: byVn, vns: Object.keys(byVn).map(Number).sort((a,b) => a-b) });
+  }
 
   return {
     facilities, districts, bandCounts, hrBandCounts, catOverall, distCat, hrGaps,
     totalFac, functionalCount, avgReadiness, lastDate, firstDate,
-    baselineCount: baselineFacs.length,
-    followupCount: followupRowsCount,
+    // Facilities that HAVE a baseline (not "facilities whose latest visit is a baseline"),
+    // and facilities with at least one follow-up on top of it.
+    baselineCount: journeys.length,
+    followupCount: journeys.filter(j => j.vns.length > 1).length,
+    journeys,
     rawRows: rows
   };
 }
@@ -1284,55 +1311,142 @@ function getCatAction(cat, v) {
 }
 
 // ─── PAGE 4: PROGRESS OVER TIME ─────────────────────────────
+// Everything here is derived from DATA.journeys (one entry per facility with a baseline,
+// holding every visit it has had), so Follow-up 2, 3 ... show up as soon as rows with
+// higher Visit Numbers are added to the sheet. Nothing is hardcoded to Follow-up 1.
+const CHANGE_THRESHOLD = 1;   // percentage points; smaller moves count as "no material change"
+
+function roundLabel(vn) { return vn === 1 ? 'Baseline' : `Follow-up ${vn - 1}`; }
+
+function scoreChip(v) {
+  if (!v) return '<span style="color:#ccc;">–</span>';
+  return `<span class="fac-score" style="background:${bandColor(v.s)};color:${bandTextColor(v.s)};">${v.s}%</span>`;
+}
+
+function changeText(delta) {
+  const txt = (delta > 0 ? '+' : '') + delta.toFixed(1) + ' pts';
+  if (delta >= CHANGE_THRESHOLD) return `<span style="color:var(--green);font-weight:600;white-space:nowrap;">▲ ${txt}</span>`;
+  if (delta <= -CHANGE_THRESHOLD) return `<span style="color:var(--red-mid);font-weight:600;white-space:nowrap;">▼ ${txt}</span>`;
+  return `<span style="color:#888;font-weight:600;white-space:nowrap;">● ${txt}</span>`;
+}
+
 function renderProgressPage() {
   if (!DATA) return;
+  const J = DATA.journeys || [];
+  const withFU = J.filter(j => j.vns.length > 1);
+  const maxVn = J.reduce((m, j) => Math.max(m, j.vns[j.vns.length - 1]), 1);
+
+  // For each facility with a follow-up: baseline vs its latest visit
+  const pairs = withFU.map(j => {
+    const lastVn = j.vns[j.vns.length - 1];
+    const prevVn = j.vns[j.vns.length - 2];
+    const base = j.visits[1], last = j.visits[lastVn], prev = j.visits[prevVn];
+    return {
+      j, base, last, lastVn,
+      delta: Math.round((last.s - base.s) * 10) / 10,
+      step: Math.round((last.s - prev.s) * 10) / 10
+    };
+  }).sort((a, b) => b.delta - a.delta);
+
+  const improved = pairs.filter(p => p.delta >= CHANGE_THRESHOLD).length;
+  const regressed = pairs.filter(p => p.delta <= -CHANGE_THRESHOLD).length;
+  const steady = pairs.length - improved - regressed;
+  const avgDelta = pairs.length ? Math.round(pairs.reduce((a, p) => a + p.delta, 0) / pairs.length * 10) / 10 : null;
+  const funcBase = pairs.filter(p => p.base.band === 'Functional').length;
+  const funcNow = pairs.filter(p => p.last.band === 'Functional').length;
+
+  const roundCounts = [];
+  for (let vn = 2; vn <= maxVn; vn++) roundCounts.push({ vn, n: J.filter(j => j.visits[vn]).length });
+
+  // ── subtitle
   const sub = document.getElementById('progress-subtitle');
   if (sub) {
-    sub.textContent = DATA.firstDate
-      ? `Baseline from ${DATA.firstDate} · ${DATA.followupCount > 0 ? DATA.followupCount + ' follow-up visit(s) recorded' : 'no follow-up visits recorded yet'}`
-      : 'No visit data available yet';
+    sub.textContent = J.length === 0
+      ? 'No visit data available yet'
+      : `Baseline recorded for ${J.length} facilities · ${withFU.length} ${withFU.length === 1 ? 'has' : 'have'} at least one follow-up visit`;
   }
 
+  // ── hero cards
   const heroEl = document.getElementById('progress-heroes');
-  if (heroEl) {
+  if (heroEl) { try {
+    const pct = J.length ? Math.round(withFU.length / J.length * 1000) / 10 : 0;
+    const rounds = roundCounts.filter(r => r.n > 0).map(r => `${roundLabel(r.vn)}: ${r.n}`).join(' · ');
+    const deltaColor = avgDelta === null ? '#ccc' : avgDelta >= CHANGE_THRESHOLD ? 'var(--green)' : avgDelta <= -CHANGE_THRESHOLD ? 'var(--red-mid)' : '#888';
     heroEl.innerHTML = `
-      <div class="hero"><div class="hero-label">Baseline visits</div><div class="hero-val">${DATA.baselineCount}</div><div class="hero-sub">${DATA.firstDate || '—'}</div></div>
-      <div class="hero"><div class="hero-label">Follow-up visits</div><div class="hero-val" style="color:${DATA.followupCount>0?'var(--green)':'#ccc'}">${DATA.followupCount}</div><div class="hero-sub">${DATA.followupCount>0?'Recorded in sheet':'None recorded yet'}</div></div>
-      <div class="hero"><div class="hero-label">Functional now</div><div class="hero-val" style="color:${DATA.totalFac>0 && DATA.functionalCount>=DATA.totalFac*0.25?'var(--green)':'var(--red-mid)'}">${DATA.functionalCount}</div><div class="hero-sub">of ${DATA.totalFac} facilities</div></div>
-      <div class="hero"><div class="hero-label">Avg readiness</div><div class="hero-val" style="color:${bandTextColor(DATA.avgReadiness)}">${DATA.totalFac>0?DATA.avgReadiness+'%':'—'}</div><div class="hero-sub">All facilities · latest visit</div></div>`;
-  }
+      <div class="hero"><div class="hero-label">Facilities with baseline</div><div class="hero-val">${J.length}</div><div class="hero-sub">${DATA.districts.length} districts</div></div>
+      <div class="hero"><div class="hero-label">Facilities with follow-up</div><div class="hero-val" style="color:${withFU.length > 0 ? 'var(--green)' : '#ccc'}">${withFU.length} <span style="font-size:16px;font-weight:400;color:#999">/ ${J.length}</span></div><div class="hero-sub">${withFU.length > 0 ? `${pct}% of baselined · ${esc(rounds)}` : 'No follow-up visits yet'}</div></div>
+      <div class="hero"><div class="hero-label">Avg change since baseline</div><div class="hero-val" style="color:${deltaColor}">${avgDelta === null ? '—' : (avgDelta > 0 ? '+' : '') + avgDelta.toFixed(1) + ' pts'}</div><div class="hero-sub">${pairs.length ? `${improved} improved · ${regressed} regressed · ${steady} no material change` : 'Appears with first follow-up'}</div></div>
+      <div class="hero"><div class="hero-label">Functional (≥80%)</div><div class="hero-val" style="color:${funcNow > funcBase ? 'var(--green)' : funcNow < funcBase ? 'var(--red-mid)' : '#888'}">${pairs.length ? `${funcBase} → ${funcNow}` : '—'}</div><div class="hero-sub">${pairs.length ? `baseline → latest, among the ${pairs.length} followed-up` : 'Appears with first follow-up'}</div></div>`;
+  } catch (e) { console.error('progress-heroes render error:', e); heroEl.innerHTML = `<div style="color:var(--red-mid);font-size:12px;padding:8px;">Render error: ${esc(e.message)} — see console.</div>`; } }
 
-  const trendEl = document.getElementById('progress-trend');
-  if (trendEl) {
-    if (DATA.districts.length === 0) {
-      trendEl.innerHTML = '<div style="color:#999;font-size:12px;padding:12px 0;">No data available.</div>';
+  const emptyMsg = '<div style="color:#999;font-size:12px;padding:12px 0;">No follow-up visits recorded yet. Once a row with Visit Number 2 or higher is added to the Master sheet, the change appears here.</div>';
+
+  // ── facility journey table
+  const jEl = document.getElementById('progress-journey');
+  if (jEl) { try {
+    if (pairs.length === 0) {
+      jEl.innerHTML = emptyMsg;
     } else {
-      let tHtml = '';
-      const sortedDists = [...DATA.districts].map(d => {
-        const dFacs = DATA.facilities.filter(f => f.d === d);
-        const avg = dFacs.length > 0 ? Math.round(dFacs.reduce((a,b)=>a+b.s,0)/dFacs.length*10)/10 : 0;
-        return { d, avg };
-      }).sort((a,b) => b.avg - a.avg);
-      for (const { d, avg } of sortedDists) {
-        const sn = d.replace('West Singhbhum','W. Singhbhum').replace('East Singhbhum','E. Singhbhum');
-        tHtml += `<div class="bar-row"><div class="bar-label-left" style="width:100px;">${esc(sn)}</div><div class="bar-track"><div class="bar-fill" style="width:${avg}%;background:${bandColor(avg)}"></div></div><div class="bar-pct" style="color:${bandTextColor(avg)}">${avg}%</div></div>`;
+      const colVns = [];
+      for (let vn = 1; vn <= maxVn; vn++) colVns.push(vn);
+      const showStep = pairs.some(p => p.lastVn > 2);   // only useful once someone has 2+ follow-ups
+      const th = 'position:sticky;top:0;z-index:1;';
+      let h = `<table class="data-table"><thead><tr>
+        <th style="${th}">Facility</th><th style="${th}">District</th>
+        ${colVns.map(vn => `<th style="${th}text-align:center;">${roundLabel(vn)}</th>`).join('')}
+        <th style="${th}">Change vs baseline</th>
+        ${showStep ? `<th style="${th}">Since previous visit</th>` : ''}
+        <th style="${th}">Band movement</th></tr></thead><tbody>`;
+      for (const p of pairs) {
+        const bandCell = p.base.band !== p.last.band
+          ? `${bandTag(p.base.band)} <span style="color:#aaa;">→</span> ${bandTag(p.last.band)}`
+          : `${bandTag(p.last.band)} <span style="color:#aaa;font-size:11px;">no change</span>`;
+        h += `<tr>
+          <td>${esc(p.j.n)}</td>
+          <td style="font-size:11px;color:#888;">${esc(p.j.d.replace('West Singhbhum','W. Singhbhum').replace('East Singhbhum','E. Singhbhum'))}</td>
+          ${colVns.map(vn => `<td style="text-align:center;">${scoreChip(p.j.visits[vn])}</td>`).join('')}
+          <td>${changeText(p.delta)}<div style="font-size:10px;color:#999;">at ${roundLabel(p.lastVn)}</div></td>
+          ${showStep ? `<td>${changeText(p.step)}</td>` : ''}
+          <td>${bandCell}</td>
+        </tr>`;
       }
-      trendEl.innerHTML = tHtml;
+      h += '</tbody></table>';
+      jEl.innerHTML = h;
     }
-  }
+  } catch (e) { console.error('progress-journey render error:', e); jEl.innerHTML = `<div style="color:var(--red-mid);font-size:12px;padding:8px;">Render error: ${esc(e.message)} — see console.</div>`; } }
 
-  const funcEl = document.getElementById('progress-functional');
-  if (funcEl) {
-    if (DATA.totalFac === 0) {
-      funcEl.innerHTML = '<div style="color:#999;font-size:12px;padding:12px 0;">No data available.</div>';
+  // ── category movement (same facilities at baseline and latest)
+  const cEl = document.getElementById('progress-cats');
+  if (cEl) { try {
+    if (pairs.length === 0) {
+      cEl.innerHTML = emptyMsg;
     } else {
-      const pct = Math.round(DATA.functionalCount/DATA.totalFac*100);
-      funcEl.innerHTML = `
-        <div style="font-size:48px;font-weight:700;color:${DATA.functionalCount>0?bandTextColor(pct):'var(--red-mid)'}">${DATA.functionalCount}</div>
-        <div style="font-size:12px;color:#999;">of ${DATA.totalFac} facilities (${pct}%)</div>
-        <div style="font-size:10px;color:#aaa;margin-top:12px;">Updates automatically as follow-up visit rows are added to the Master sheet.</div>`;
+      const avg = arr => arr.reduce((a, b) => a + b, 0) / arr.length;
+      const catRows = DISPLAY_CATS.map(cat => {
+        const b = Math.round(avg(pairs.map(p => p.base.cats[cat])) * 10) / 10;
+        const l = Math.round(avg(pairs.map(p => p.last.cats[cat])) * 10) / 10;
+        return { cat, b, l, d: Math.round((l - b) * 10) / 10 };
+      }).sort((x, y) => y.d - x.d);
+      let c = `<div style="display:flex;gap:14px;font-size:10px;color:#888;margin-bottom:8px;">
+        <span><span style="display:inline-block;width:10px;height:7px;background:#C9C6BC;border-radius:2px;margin-right:4px;"></span>Baseline</span>
+        <span><span style="display:inline-block;width:10px;height:7px;background:#97C459;border-radius:2px;margin-right:4px;"></span>Latest visit</span>
+        <span style="margin-left:auto;">Average of ${pairs.length} facilit${pairs.length === 1 ? 'y' : 'ies'} with follow-up</span></div>`;
+      for (const r of catRows) {
+        const dColor = r.d >= CHANGE_THRESHOLD ? 'var(--green)' : r.d <= -CHANGE_THRESHOLD ? 'var(--red-mid)' : '#888';
+        const arrow = r.d >= CHANGE_THRESHOLD ? '▲' : r.d <= -CHANGE_THRESHOLD ? '▼' : '●';
+        c += `<div class="bar-row">
+          <div class="bar-label">${esc(r.cat)}</div>
+          <div style="flex:1;display:flex;flex-direction:column;gap:3px;">
+            <div style="height:7px;background:#F0EDE8;border-radius:3px;overflow:hidden;"><div style="width:${r.b}%;height:100%;background:#C9C6BC;"></div></div>
+            <div style="height:7px;background:#F0EDE8;border-radius:3px;overflow:hidden;"><div style="width:${r.l}%;height:100%;background:${catColor(r.l)};"></div></div>
+          </div>
+          <div style="width:92px;text-align:right;font-size:11px;white-space:nowrap;"><span style="color:#888;">${r.b}%</span> → <strong>${r.l}%</strong></div>
+          <div style="width:64px;text-align:right;font-size:11px;font-weight:600;color:${dColor};white-space:nowrap;">${arrow} ${(r.d > 0 ? '+' : '') + r.d.toFixed(1)}</div>
+        </div>`;
+      }
+      cEl.innerHTML = c;
     }
-  }
+  } catch (e) { console.error('progress-cats render error:', e); cEl.innerHTML = `<div style="color:var(--red-mid);font-size:12px;padding:8px;">Render error: ${esc(e.message)} — see console.</div>`; } }
 }
 
 // ─── PAGE NAVIGATION ────────────────────────────────────────
